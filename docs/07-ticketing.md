@@ -1,190 +1,161 @@
-# Ticketing and Orders
+# Ticketing
 
-## Objective
+## Overview
 
-The platform should support ticketing for passenger routes.
+The ticketing system handles free ticket claiming, paid orders, QR code display, and driver-side boarding validation.
 
-Tickets can be:
+---
 
-- Paid
-- Free
-- Required
-- Optional
-- Not required
+## Ticket Products
 
-A ticket can be valid for:
-
-- One route
-- Multiple routes
-- One region
-- Multiple regions
-- A single journey
-- A day
-- A week
-- A month
-- A custom date range
-
-## Route Ticket Rules
-
-Each route should have a setting:
-
-| Setting | Description |
-|---|---|
-| No ticket required | Passenger can view/use route without ticket |
-| Ticket optional | Passenger can buy/claim but not required |
-| Ticket required | Passenger must hold valid ticket |
-| Free ticket required | User must claim free ticket |
-| Paid ticket required | User must purchase valid ticket |
-
-## Ticket Product Fields
+Ticket products are created by admins in the web portal under **Tickets**.
 
 | Field | Description |
 |---|---|
-| name | Ticket name |
-| description | Passenger-facing description |
-| routeIds | One or many routes |
-| regionIds | Optional region validity |
-| price | Price |
-| isFree | True/false |
-| requiresPayment | True/false |
-| validityType | Single/day/week/month/custom |
-| visible | Show in passenger app |
-| maxUses | Optional use limit |
-| status | Active/inactive |
+| name | Product name (e.g. "School Route Single") |
+| price | `0.00` = free. Paid products require payment integration (not yet wired to a gateway) |
+| currency | `GBP` |
+| validityType | `single`, `day`, `week`, `month` |
+| routeId | Optional — restrict to a specific route |
+| regionId | Optional — restrict to a specific region |
+| isActive | Whether passengers can see and claim/buy it |
 
-## Free Tickets
+---
 
-Free tickets should still create an order.
+## Ticket Orders
 
-Payment status should be:
+A ticket order is created when a passenger claims or purchases a ticket. Each order has:
 
-```text
-not_required
-```
-
-This keeps records consistent and allows the passenger to view previous free claims.
-
-## Paid Tickets
-
-Paid tickets should use a payment provider.
-
-Suggested provider:
-
-```text
-Stripe
-```
-
-Payment flow:
-
-```text
-Select ticket
-→ Create order
-→ Create payment intent
-→ User pays
-→ Confirm payment
-→ Issue ticket
-→ Show ticket in app
-```
-
-## Ticket Validity
-
-Example validity types:
-
-| Type | Description |
+| Field | Description |
 |---|---|
-| Single | One journey |
-| Day | Valid for a day |
-| Weekly | Valid for 7 days |
-| Monthly | Valid for month |
-| Date range | Custom dates |
-| Route pass | Valid while account active |
+| ticketCode | Random 8-character alphanumeric code — used for QR |
+| status | `active`, `used`, `expired`, `cancelled` |
+| validFrom | Start of validity window |
+| validUntil | End of validity window |
+| boardedAt | Timestamp set when the driver validates the ticket |
+| boardedSessionId | Driver session that validated the ticket |
 
-## Ticket Display
+---
 
-A ticket should show:
+## Claiming a Free Ticket (Passenger App)
 
-- Ticket name
-- Route validity
-- Valid from
-- Valid to
-- Passenger name
-- QR code/barcode
-- Ticket code
-- Status
+### Step 1 — View available products
 
-## Ticket QR Payload
+```
+GET /ticketing/public/products
+```
 
-Example:
+Returns all active products for the passenger's region/route.
 
+### Step 2 — Claim
+
+```
+POST /ticketing/my/claim
+Authorization: Bearer <passenger-jwt>
+Body: { "productId": "uuid" }
+```
+
+Response:
 ```json
 {
-  "ticketCode": "TCK-ABC123",
-  "orderRef": "ORD-10001",
-  "userId": "user_001",
-  "validFrom": "2026-05-09T00:00:00Z",
-  "validTo": "2026-05-09T23:59:59Z"
+  "id": "uuid",
+  "ticketCode": "AB12CD34",
+  "status": "active",
+  "validFrom": "2025-01-20T00:00:00Z",
+  "validUntil": "2025-01-20T23:59:59Z",
+  "product": { "name": "School Route Single", "validityType": "single" }
 }
 ```
 
-## Previous Orders
+### Step 3 — Display QR code
 
-Passenger can view:
+The passenger app renders the `ticketCode` as a QR code canvas using the `qrcode` library.
 
-- Order reference
-- Ticket name
-- Date purchased/claimed
-- Amount
+```ts
+import QRCode from 'qrcode';
+await QRCode.toCanvas(canvasElement, ticketCode, { width: 220 });
+```
+
+---
+
+## Boarding Validation (Driver Side)
+
+When the driver scans a QR code, the driver device calls:
+
+```
+POST /ticketing/validate
+Body: {
+  "ticketCode": "AB12CD34",
+  "sessionId": "driver-session-uuid"
+}
+```
+
+### Validation Logic
+
+1. Find the ticket order by `ticketCode`.
+2. Check status is `active`.
+3. Check `validFrom` and `validUntil` window.
+4. Check the `sessionId` is a real active driver session (prevents brute-force).
+5. Mark ticket `status = used`, set `boardedAt` and `boardedSessionId`.
+
+### Success Response
+
+```json
+{
+  "valid": true,
+  "message": "Ticket accepted",
+  "ticketCode": "AB12CD34",
+  "passenger": "Jane Smith"
+}
+```
+
+### Error Responses
+
+```json
+{ "valid": false, "message": "Ticket not found" }
+{ "valid": false, "message": "Ticket already used" }
+{ "valid": false, "message": "Ticket expired" }
+{ "valid": false, "message": "Invalid session" }
+```
+
+---
+
+## Finance Orders (Admin)
+
+The web portal **Finance** page shows all ticket orders:
+
+- Passenger name and email
+- Product name
+- Price and currency
 - Status
-- Receipt
-- Ticket code
+- Valid from / until
+- Boarded at (if validated)
 
-## Finance Reporting
+Admins can download all orders as a CSV from the **Reports** page:
 
-Finance users should see:
+```
+GET /reports/finance
+Authorization: Bearer <admin-jwt>
+```
 
-- Gross sales
-- Free tickets claimed
-- Paid tickets sold
-- Failed payments
-- Refunds
-- Route revenue
-- Ticket product revenue
-- Exportable order data
+---
 
-## Ticketing Task List
+## Partner API Access
 
-### Phase 1 — Ticket Products
+Partners can access finance data using an API key:
 
-- [ ] Create ticket product table
-- [ ] Create ticket product API
-- [ ] Create ticket product WebUI page
-- [ ] Add free ticket option
-- [ ] Add paid ticket option
-- [ ] Link ticket to one route
-- [ ] Link ticket to many routes
+```
+GET /partner/finance
+X-API-Key: <plain-api-key>
+```
 
-### Phase 2 — Passenger Orders
+---
 
-- [ ] Create order table
-- [ ] Create free ticket order flow
-- [ ] Show previous orders
-- [ ] Show active ticket
-- [ ] Generate ticket code
-- [ ] Generate QR payload
+## Ticket Validity Windows
 
-### Phase 3 — Payments
-
-- [ ] Add payment provider integration
-- [ ] Create payment intent
-- [ ] Confirm payment
-- [ ] Mark order paid
-- [ ] Handle payment failure
-- [ ] Handle refunds
-
-### Phase 4 — Finance
-
-- [ ] Create finance dashboard
-- [ ] Add order exports
-- [ ] Add revenue report by route
-- [ ] Add revenue report by ticket product
-- [ ] Add free ticket claim report
+| validityType | Window |
+|---|---|
+| `single` | Same calendar day as claim |
+| `day` | 24 hours from claim |
+| `week` | 7 days from claim |
+| `month` | 30 days from claim |

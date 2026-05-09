@@ -1,183 +1,202 @@
-# GitHub and VS Code Setup
+# Local Dev Setup — Git, GitHub and VS Code
 
-## Objective
+## Prerequisites
 
-Set up the project so it can be developed in VS Code and uploaded to GitHub.
+- Git installed (`git --version`)
+- Node.js v18 or later (`node --version`)
+- VS Code (or VS Code Insiders)
+- PostgreSQL 14 or later
 
-## Recommended Repo Name
+---
 
-```text
-transport-saas-platform
-```
-
-Alternative names:
-
-```text
-school-workforce-transport-platform
-passenger-transport-saas
-route-tracking-ticketing-platform
-```
-
-## Local Folder Structure
-
-```text
-transport-saas-platform/
-├── apps/
-│   ├── driver-android/
-│   ├── passenger-app/
-│   └── web-portal/
-├── backend/
-│   ├── api/
-│   ├── database/
-│   └── services/
-├── docs/
-├── docker/
-├── scripts/
-├── README.md
-└── .gitignore
-```
-
-## VS Code Extensions
-
-Recommended:
-
-- GitHub Pull Requests
-- GitLens
-- Docker
-- ESLint
-- Prettier
-- Kotlin
-- Gradle for Java
-- REST Client
-- PostgreSQL
-- YAML
-
-## Git Setup
+## Cloning the Repository
 
 ```bash
-git init
-git add .
-git commit -m "Initial project documentation"
+git clone https://github.com/Botric/transport-saas-platform.git
+cd transport-saas-platform
 ```
 
-## Create GitHub Repo
+---
 
-1. Go to GitHub
-2. Create new repository
-3. Name it `transport-saas-platform`
-4. Do not initialise with README if you already created one locally
-5. Copy the remote URL
+## First-Time Setup
 
-Then run:
+### Backend
 
 ```bash
-git remote add origin https://github.com/Botric/transport-saas-platform.git
-git branch -M main
-git push -u origin main
+cd backend/api
+cp .env.example .env
+# Edit .env — set DB_PASSWORD, JWT_SECRET, ACTIVATION_TOKEN_SECRET
+npm install
+npm run start:dev
 ```
 
-## .gitignore
+### Web Portal
 
-Suggested root `.gitignore`:
-
-```gitignore
-# Node
-node_modules/
-dist/
-build/
-.env
-.env.local
-
-# Android
-.gradle/
-local.properties
-*.apk
-*.aab
-app/release/
-app/debug/
-
-# IDE
-.vscode/settings.json
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Database
-*.sqlite
-*.db
+```bash
+cd apps/web-portal
+npm install
+npm run dev
 ```
 
-## Branching
+### Passenger App
 
-Recommended branches:
-
-```text
-main
-develop
-feature/driver-app
-feature/backend-api
-feature/web-portal
-feature/passenger-app
-feature/ticketing
+```bash
+cd apps/passenger-app
+npm install
+npm run dev
 ```
 
-## Commit Message Examples
+> **Linux / GVFS-mounted filesystems:** If `npm install` fails with `EIO` errors on symlinks, use:
+> ```bash
+> npm install --no-bin-links
+> ```
+> Then use `node node_modules/vite/dist/node/cli.js` instead of `npx vite`.
 
-```text
-Add driver app activation flow
-Create route departure API
-Add live tracking endpoint
-Add vehicle registration validation
-Create passenger ticket order schema
+---
+
+## Installing Dependencies After Pulling Changes
+
+```bash
+cd backend/api && npm install
+cd apps/web-portal && npm install
+cd apps/passenger-app && npm install
 ```
 
-## Development Order in GitHub
+---
 
-### Milestone 1 — Documentation
+## Running All Services
 
-- [ ] Add README
-- [ ] Add docs folder
-- [ ] Add product overview
-- [ ] Add driver app spec
-- [ ] Add backend API spec
-- [ ] Add database schema
+Open three terminal windows or VS Code split terminals:
 
-### Milestone 2 — Driver APK
+**Terminal 1 — Backend:**
+```bash
+cd backend/api
+npm run start:dev
+```
 
-- [ ] Create Android project
-- [ ] Add activation screen
-- [ ] Add vehicle reg screen
-- [ ] Add driver name screen
-- [ ] Add region/route/departure screens
-- [ ] Add tracking service
-- [ ] Build APK
+**Terminal 2 — Web Portal:**
+```bash
+cd apps/web-portal
+npm run dev
+```
 
-### Milestone 3 — Backend API
+**Terminal 3 — Passenger App:**
+```bash
+cd apps/passenger-app
+npm run dev
+```
 
-- [ ] Create API project
-- [ ] Add PostgreSQL
-- [ ] Add activation code endpoints
-- [ ] Add route endpoints
-- [ ] Add tracking endpoints
-- [ ] Add live status endpoint
+| Service | URL |
+|---|---|
+| Backend API | http://localhost:3000 |
+| Web Portal | http://localhost:5173 |
+| Passenger App | http://localhost:5174 |
 
-### Milestone 4 — Web Portal
+---
 
-- [ ] Add login
-- [ ] Add route admin
-- [ ] Add activation code admin
-- [ ] Add vehicle reg admin
-- [ ] Add live map
+## TypeScript Checks
 
-### Milestone 5 — Passenger App
+Run a full TypeScript check without building:
 
-- [ ] Add login/register
-- [ ] Add region/route preference
-- [ ] Add live vehicle display
-- [ ] Add ticket list
-- [ ] Add orders
+```bash
+# Backend
+cd backend/api
+node node_modules/typescript/bin/tsc --noEmit
+
+# Web Portal
+cd apps/web-portal
+node node_modules/typescript/bin/tsc --noEmit
+
+# Passenger App
+cd apps/passenger-app
+node node_modules/typescript/bin/tsc --noEmit
+```
+
+> **Do not use `npx tsc`** — on some Linux systems it installs an unrelated package. Use the local binary from `node_modules` as shown above.
+
+---
+
+## Recommended VS Code Extensions
+
+| Extension | Purpose |
+|---|---|
+| ESLint | Lint JavaScript and TypeScript |
+| Prettier | Code formatting |
+| Tailwind CSS IntelliSense | Autocomplete for Tailwind classes |
+| REST Client | Test API endpoints directly in VS Code |
+| GitLens | Enhanced Git history and blame |
+| DotENV | Syntax highlighting for `.env` files |
+| NestJS Snippets | NestJS boilerplate shortcuts |
+
+Install all at once:
+```bash
+code --install-extension dbaeumer.vscode-eslint \
+  esbenp.prettier-vscode \
+  bradlc.vscode-tailwindcss \
+  humao.rest-client \
+  eamodio.gitlens \
+  mikestead.dotenv \
+  ashinzekene.nestjs-snippets
+```
+
+---
+
+## Git Workflow
+
+### Branching
+
+```bash
+# Create a feature branch
+git checkout -b feature/my-feature
+
+# Push and open a PR
+git push -u origin feature/my-feature
+```
+
+### Committing
+
+```bash
+git add -A
+git commit -m "feat: add route stops page"
+git push
+```
+
+### Conventional commit prefixes
+
+| Prefix | Use for |
+|---|---|
+| `feat:` | New feature |
+| `fix:` | Bug fix |
+| `docs:` | Documentation only |
+| `chore:` | Build, config, tooling |
+| `refactor:` | Code change with no behaviour change |
+
+---
+
+## Database (Local PostgreSQL)
+
+```bash
+# Start PostgreSQL (Linux — systemd)
+sudo systemctl start postgresql
+
+# Create database
+psql -U postgres -c "CREATE DATABASE transport_saas;"
+
+# Connect to database
+psql -U postgres -d transport_saas
+```
+
+TypeORM will create all tables automatically on first `npm run start:dev`.
+
+---
+
+## Environment Files
+
+Never commit `.env` files. They are in `.gitignore`. Only commit `.env.example` files.
+
+```
+backend/api/.env.example        ← committed
+backend/api/.env                ← gitignored (your local config)
+apps/passenger-app/.env.example ← committed
+apps/passenger-app/.env.local   ← gitignored
+```

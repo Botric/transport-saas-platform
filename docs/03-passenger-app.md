@@ -1,197 +1,194 @@
 # Passenger App
 
-## Objective
+## Overview
 
-The Passenger App allows users to store their region and route, view live service information, see ETAs, buy or claim tickets, and view previous orders.
+The passenger app is a React + Vite Progressive Web App (PWA), also packaged as an Android APK via Capacitor. It gives passengers a live map, stop ETAs, and a ticket wallet.
 
-The passenger app could be built as:
+Source: `apps/passenger-app/`
 
-- Android APK
-- iOS app later
-- Progressive Web App
-- React Native app
+## Development Setup (PWA)
 
-For early testing, a PWA may be quicker. For Android-first, create an APK after the driver app.
+### Prerequisites
 
-## Passenger Account
+- Node.js v18 or later
+- Backend running at `http://localhost:3000`
 
-A passenger must have a user account.
+### Steps
 
-Account fields:
+```bash
+cd apps/passenger-app
+npm install
+npm run dev
+```
 
-| Field | Description |
+App is available at `http://localhost:5174`.
+
+All calls to `/api/*` are proxied by Vite to `http://localhost:3000` — no CORS issues in development.
+
+### Environment Variables (PWA — no .env needed)
+
+Leave `VITE_API_URL` blank. The Vite proxy handles `/api` automatically.
+
+```env
+# .env.local (optional)
+VITE_API_URL=
+```
+
+---
+
+## Android APK Build
+
+### Prerequisites
+
+- Android Studio installed (tested with Panda 4, Flamingo or later)
+- JDK from Android Studio's bundled JBR (Java 21) — **not** system Java
+- Capacitor CLI: already installed as a dev dependency
+- Backend accessible from the Android device/emulator IP
+
+### Step 1 — Set the backend URL
+
+The Android WebView cannot use the Vite proxy. You must point it at a real host.
+
+```bash
+# Use your machine's LAN IP if testing on a physical device
+VITE_API_URL=http://192.168.1.100:3000 npm run build
+```
+
+Or edit `.env.local`:
+
+```env
+VITE_API_URL=http://192.168.1.100:3000
+```
+
+Then:
+
+```bash
+npm run build
+```
+
+This outputs to `dist/`.
+
+### Step 2 — Sync Capacitor
+
+```bash
+npx cap sync android
+```
+
+This copies `dist/` into the Android project and updates Capacitor plugins.
+
+### Step 3 — Fix Java version (Linux/Fedora with Java 25)
+
+If your system Java is version 25, Gradle will fail. Use Android Studio's bundled JBR:
+
+```bash
+# Find the JBR path — example for Panda 4 on Linux:
+/home/<user>/Downloads/android-studio-panda4-linux/android-studio/jbr
+
+# Add this line to: apps/passenger-app/android/gradle.properties
+org.gradle.java.home=/home/<user>/Downloads/android-studio-panda4-linux/android-studio/jbr
+```
+
+### Step 4 — Build the APK
+
+**Option A — Android Studio:**
+
+```
+1. Open Android Studio.
+2. File > Open > apps/passenger-app/android/
+3. Wait for Gradle sync.
+4. Build > Build Bundle(s) / APK(s) > Build APK(s).
+5. APK is in: android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+**Option B — Command line:**
+
+```bash
+cd apps/passenger-app/android
+./gradlew assembleDebug
+# Output: app/build/outputs/apk/debug/app-debug.apk
+```
+
+### Step 5 — Install on device
+
+```bash
+adb install app/build/outputs/apk/debug/app-debug.apk
+```
+
+Or transfer the APK file manually and install via Files on the device.
+
+---
+
+## Rebuilding After Code Changes
+
+```bash
+# 1. Make code changes in apps/passenger-app/src/
+# 2. Rebuild the web bundle
+npm run build
+
+# 3. Sync to Android project
+npx cap sync android
+
+# 4. Rebuild APK (command line)
+cd android && ./gradlew assembleDebug
+```
+
+---
+
+## Capacitor Configuration
+
+File: `apps/passenger-app/capacitor.config.ts`
+
+```ts
+{
+  appId: 'com.tango.passenger',
+  appName: 'Tango',
+  webDir: 'dist',
+  server: {
+    androidScheme: 'https',
+  },
+  android: {
+    allowMixedContent: true,      // needed if backend is HTTP during dev/testing
+    backgroundColor: '#2563eb',   // Tango blue splash screen
+  }
+}
+```
+
+| Option | Description |
 |---|---|
-| name | Passenger/user name |
-| email | Login and receipt email |
-| phone | Optional notifications |
-| defaultRegionId | Stored selected region |
-| defaultRouteId | Stored selected route |
-| userType | Adult, parent, student, workforce user |
-| status | Active, blocked, deleted |
+| `appId` | Android package name — change for production |
+| `appName` | App display name |
+| `webDir` | Output folder from `npm run build` (always `dist`) |
+| `androidScheme` | `https` prevents mixed-content blocks |
+| `allowMixedContent` | Set `true` for HTTP backends during testing; set `false` for production HTTPS |
+| `backgroundColor` | Splash screen colour |
 
-## First-Login Flow
+---
 
-```text
-Open app
-→ Create account/login
-→ Select region
-→ Select route
-→ Save preferences
-→ Show service dashboard
-```
+## App Pages
 
-## Stored Region and Route
+| Route | Page | Description |
+|---|---|---|
+| `/login` | LoginPage | Email + password login |
+| `/register` | RegisterPage | Create passenger account |
+| `/setup` | SetupPage | Choose region and route (saved to account) |
+| `/` | DashboardPage | Route summary, next departure, live status, ticket button |
+| `/map` | LiveMapPage | Full-screen live map with bus marker, stop ETAs panel |
+| `/tickets` | TicketsPage | Active tickets with QR code, get new ticket, past orders |
+| `/settings` | SettingsPage | Change region/route, account details |
 
-The app should store against the account:
+---
 
-- Region
-- Route
-- Optional default stop
-- Optional favourite departure time
+## API Calls Made by the Passenger App
 
-This allows the user to open the app and immediately see their service.
-
-## Passenger App Main Dashboard
-
-Should show:
-
-- Selected region
-- Selected route
-- Next scheduled departure
-- Live bus location
-- ETA
-- Capacity level
-- Buy/claim ticket button
-- Active ticket
-- Previous orders
-- Service alerts
-
-## Live Bus Location
-
-The app should show:
-
-- Vehicle location on map
-- Route line if available
-- ETA to selected stop
-- Capacity level
-- Vehicle reg if allowed
-- Last updated time
-
-## ETA
-
-ETA can be calculated from:
-
-- Latest GPS point
-- Route geometry
-- Stop order
-- Scheduled departure time
-- Delay against timetable
-
-MVP can use a simple ETA:
-
-```text
-ETA = scheduled stop time + current route delay
-```
-
-Later versions can use actual map routing.
-
-## Capacity Display
-
-Passenger-facing capacity should be simple.
-
-Example:
-
-```text
-Seats available
-Quiet
-Getting busy
-Very busy
-Full
-```
-
-Avoid showing exact passenger counts unless required.
-
-## Ticketing
-
-The passenger app should allow tickets to be:
-
-- Paid
-- Free
-- Required
-- Optional
-- Not required for a route
-
-A user may be able to travel without buying if the route is configured as free/no ticket required.
-
-## Previous Orders
-
-Passenger should be able to view:
-
-- Order number
-- Ticket name
-- Route/region
-- Purchase date
-- Validity
-- Price
-- Status
-- Receipt
-- QR/code if applicable
-
-## Passenger Ticket Display
-
-Ticket screen should show:
-
-- Ticket name
-- Route validity
-- Valid from/to
-- QR code or barcode
-- Passenger name
-- Status
-- Order reference
-
-## Passenger Notifications
-
-Possible notifications:
-
-- Bus is nearby
-- Bus is delayed
-- Bus is full
-- Route cancelled
-- Ticket purchased
-- Ticket expired soon
-- Service alert
-
-## Passenger App Task List
-
-### Phase 1 — Account and Preferences
-
-- [ ] Create passenger app project
-- [ ] Create login/register screen
-- [ ] Create region selection
-- [ ] Create route selection
-- [ ] Save selected region/route to user account
-- [ ] Show default service dashboard
-
-### Phase 2 — Live Service View
-
-- [ ] Show active buses for selected route
-- [ ] Show ETA
-- [ ] Show vehicle capacity level
-- [ ] Show last updated time
-- [ ] Add map view
-
-### Phase 3 — Tickets
-
-- [ ] Show available ticket products for route
-- [ ] Support free tickets
-- [ ] Support paid tickets
-- [ ] Show active ticket
-- [ ] Show previous orders
-- [ ] Show ticket QR/code
-
-### Phase 4 — Notifications
-
-- [ ] Add push notification support
-- [ ] Add service alerts
-- [ ] Add ticket confirmation notifications
-- [ ] Add vehicle approaching notifications
+| Call | Endpoint |
+|---|---|
+| Register | `POST /auth/register` |
+| Login | `POST /auth/login` |
+| Regions | `GET /passenger/regions` |
+| Routes | `GET /passenger/regions/:id/routes` |
+| Departures | `GET /passenger/routes/:id/departures` |
+| Live bus | `GET /passenger/routes/:id/live` |
+| Stop ETAs | `GET /driver-app/routes/:id/stop-etas?departureId=` |
+| Public ticket products | `GET /ticketing/public/products` |
+| My tickets | `GET /ticketing/my/orders` |
+| Claim free ticket | `POST /ticketing/my/claim` |

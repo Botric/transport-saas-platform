@@ -1,209 +1,190 @@
-# Tracking and Live Status
+# Tracking
 
-## Objective
+## Overview
 
-The platform should track buses that have booked on through the Driver Android App.
+Live tracking records GPS positions from the driver app and displays them in the web portal and passenger app using Leaflet + OpenStreetMap.
 
-The system should show:
+---
 
-- Live vehicle location
-- Driver name
-- Vehicle registration
-- Route
-- Departure time
-- Capacity level
-- ETA
-- Last update time
-- Historical tracking backlog
+## How Tracking Works
 
-## Driver Session
+1. Driver starts a journey → a `driver_session` is created with `status = active`.
+2. Driver's device POSTs a `tracking_point` every few seconds.
+3. The web portal queries `/driver-sessions/active` to get live sessions and their latest positions.
+4. The passenger app queries `/passenger/routes/:id/live` to get the nearest active session and the latest bus position for their route.
 
-A bus becomes live when a driver creates a session.
+---
 
-Session is created after driver selects:
+## Sending a Tracking Point
 
-- Vehicle registration
-- Driver name
-- Region
-- Route
-- Departure time
+```
+POST /tracking
+Authorization: Activation Token (in header or body)
 
-## Live Status Fields
-
-| Field | Description |
-|---|---|
-| sessionId | Driver session ID |
-| vehicleRegistration | Vehicle reg |
-| driverName | Driver name |
-| regionId | Region |
-| routeId | Route |
-| departureId | Departure |
-| status | Active/completed/cancelled |
-| lat | Last known latitude |
-| lon | Last known longitude |
-| lastUpdated | Last GPS update |
-| capacityLevel | Current capacity |
-| etaMinutes | ETA to next stop/selected stop |
-
-## Tracking Point Data
-
-Each GPS point should include:
-
-```json
+Body:
 {
-  "sessionId": "session_001",
-  "lat": 53.4808,
-  "lon": -2.2426,
-  "speed": 21.3,
-  "heading": 180,
-  "accuracy": 7,
-  "timestamp": "2026-05-09T14:30:00Z"
+  "sessionId": "driver-session-uuid",
+  "lat": 51.5074,
+  "lon": -0.1278,
+  "speed": 32.5,
+  "heading": 270.0,
+  "accuracy": 5.0,
+  "batteryLevel": 84,
+  "timestamp": "2025-01-20T09:15:00Z"
 }
 ```
 
-## Capacity Levels
+### Fields
 
-Recommended levels:
+| Field | Type | Required | Description |
+|---|---|---|---|
+| sessionId | uuid | Yes | Active driver session |
+| lat | number | Yes | GPS latitude |
+| lon | number | Yes | GPS longitude |
+| speed | number | No | Speed in km/h |
+| heading | number | No | Direction in degrees (0 = North) |
+| accuracy | number | No | GPS accuracy in metres |
+| batteryLevel | integer | No | 0-100 |
+| timestamp | ISO 8601 | Yes | Device timestamp |
 
-```text
-empty
-low
-medium
-high
-full
-unknown
+The server also records `serverTimestamp` (the time the point was received) independently of the device clock.
+
+---
+
+## Retrieving Tracking Data
+
+### Admin — All points for a session
+
+```
+GET /tracking/:sessionId
+Authorization: Bearer <admin-jwt>
 ```
 
-Passenger-facing labels:
+### Admin — Active sessions with latest position
 
-```text
-Empty
-Seats available
-Getting busy
-Very busy
-Full
-Unknown
+```
+GET /driver-sessions/active
+Authorization: Bearer <admin-jwt>
 ```
 
-## Live Tracking Dashboard
+Returns:
+```json
+[
+  {
+    "id": "session-uuid",
+    "driverName": "John Smith",
+    "vehicleRegistration": "AB12 CDE",
+    "routeName": "School Run A",
+    "status": "active",
+    "latestLat": 51.5074,
+    "latestLon": -0.1278,
+    "capacity": "medium",
+    "startedAt": "2025-01-20T08:00:00Z"
+  }
+]
+```
 
-The WebUI should show:
+### Passenger — Live bus position for a route
 
-- Map
-- Active sessions list
-- Region filter
-- Route filter
-- Vehicle search
-- Capacity filter
-- Last update status
-- Session detail panel
+```
+GET /passenger/routes/:routeId/live
+```
 
-## Last Update Health
+Returns the nearest active session on that route with:
+```json
+{
+  "sessionId": "uuid",
+  "lat": 51.5074,
+  "lon": -0.1278,
+  "capacity": "medium",
+  "driverName": "John Smith",
+  "vehicleRegistration": "AB12 CDE",
+  "updatedAt": "2025-01-20T09:15:00Z"
+}
+```
 
-| Last GPS Update | Health |
+---
+
+## Stop ETAs
+
+Stop ETAs are computed from the route timetable (not live GPS), so they represent the scheduled arrival time at each stop.
+
+```
+GET /driver-app/routes/:routeId/stop-etas?departureId=uuid
+```
+
+Response:
+```json
+[
+  { "stopId": "uuid", "name": "Town Centre", "sequence": 1, "scheduledEta": "08:00" },
+  { "stopId": "uuid", "name": "High Street", "sequence": 2, "scheduledEta": "08:07" },
+  { "stopId": "uuid", "name": "School Gate", "sequence": 3, "scheduledEta": "08:15" }
+]
+```
+
+Each ETA is `departureTime + plannedArrivalOffsetMinutes` formatted as `HH:MM`.
+
+The passenger app displays these in an expandable panel on the live map screen.
+
+---
+
+## Capacity Updates
+
+```
+POST /capacity
+Authorization: Activation Token
+
+Body:
+{
+  "sessionId": "driver-session-uuid",
+  "level": "high"
+}
+```
+
+Levels: `empty`, `low`, `medium`, `high`, `full`
+
+The web portal and passenger app show the current capacity level alongside the live bus marker.
+
+---
+
+## Tracking CSV Export
+
+Admins and partners can download all tracking points as CSV.
+
+```
+GET /reports/tracking
+Authorization: Bearer <admin-jwt>
+
+GET /partner/tracking
+X-API-Key: <api-key>
+```
+
+CSV columns: `sessionId`, `driverName`, `vehicleRegistration`, `routeName`, `lat`, `lon`, `speed`, `heading`, `accuracy`, `batteryLevel`, `timestamp`, `serverTimestamp`
+
+---
+
+## GTFS Export
+
+The GTFS ZIP contains a static timetable derived from routes, stops and departures.
+
+```
+GET /reports/export/gtfs
+Authorization: Bearer <admin-jwt>
+
+GET /partner/export/gtfs
+X-API-Key: <api-key>
+```
+
+Files included in the ZIP:
+
+| File | Contents |
 |---|---|
-| Under 1 minute | Good |
-| 1-3 minutes | Warning |
-| 3+ minutes | Stale |
-| 10+ minutes | Lost |
+| `agency.txt` | Organisation details |
+| `routes.txt` | All active routes |
+| `stops.txt` | All route stops with GPS |
+| `trips.txt` | All active departures |
+| `stop_times.txt` | Per-stop scheduled times |
+| `calendar.txt` | Operating days |
+| `feed_info.txt` | Feed metadata |
 
-## Historical Tracking
-
-The platform should keep historic data for:
-
-- Route performance
-- Service proof
-- Disputes
-- Finance analysis
-- Passenger ETA improvements
-
-## Data Retention
-
-Possible retention policy:
-
-| Data | Retention |
-|---|---|
-| Live cache | Current sessions only |
-| Tracking points | 90 days or configurable |
-| Driver sessions | 7 years or configurable |
-| Orders/finance | 7 years or legal requirement |
-| Audit logs | 1-7 years configurable |
-
-## ETA Calculation
-
-### MVP ETA
-
-Use timetable delay:
-
-```text
-delay = current time - expected time at current route point
-ETA = planned stop time + delay
-```
-
-### Later ETA
-
-Use map routing:
-
-```text
-Current GPS → Next stop → Remaining stops
-```
-
-Routing engines:
-
-- OSRM
-- Valhalla
-- GraphHopper
-
-## API Read Access
-
-External systems should be able to read tracking data.
-
-Example:
-
-```http
-GET /api/v1/live
-GET /api/v1/live/regions/{regionId}
-GET /api/v1/live/routes/{routeId}
-GET /api/v1/history/sessions/{sessionId}
-```
-
-## Tracking Task List
-
-### Phase 1 — Basic Tracking
-
-- [ ] Create driver sessions table
-- [ ] Create tracking points table
-- [ ] Add driver app tracking endpoint
-- [ ] Save last known position on session
-- [ ] Show active session list in WebUI
-
-### Phase 2 — Live Map
-
-- [ ] Add map component
-- [ ] Plot active vehicles
-- [ ] Add route filter
-- [ ] Add region filter
-- [ ] Add vehicle detail panel
-- [ ] Show last update health
-
-### Phase 3 — Capacity
-
-- [ ] Add capacity update endpoint
-- [ ] Save latest capacity on session
-- [ ] Show capacity in WebUI
-- [ ] Show capacity in passenger app
-
-### Phase 4 — ETA
-
-- [ ] Add route stop timing data
-- [ ] Calculate delay
-- [ ] Calculate ETA to next stop
-- [ ] Show ETA in passenger app
-- [ ] Show ETA in WebUI
-
-### Phase 5 — History
-
-- [ ] Add historical tracking page
-- [ ] Add replay journey option
-- [ ] Add export tracking data
-- [ ] Add API history endpoint
+The GTFS ZIP can be imported into journey planners such as Google Transit, OpenTripPlanner, or Transportr.

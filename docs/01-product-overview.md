@@ -2,108 +2,101 @@
 
 ## Purpose
 
-The platform is a SaaS system for managing planned passenger transport. It can be used for:
+A SaaS platform for managing planned passenger transport. Use cases include:
 
 - Home-to-school transport
 - Workforce shuttles
-- Rail replacement style transport
+- Rail replacement services
 - Event transport
-- Closed-door contracted services
-- Public or semi-public shuttle services
-
-## Main Goals
-
-- Let drivers book onto routes using an Android app.
-- Let passengers view their route and buy or claim tickets.
-- Let control teams track active vehicles live.
-- Let admins create routes, regions, tickets, and user accounts.
-- Let finance teams report on ticket sales and service activity.
-- Provide API access to read live and historic operational data.
+- Contracted closed-door services
+- Public or semi-public shuttle routes
 
 ## Core Objects
 
 | Object | Description |
 |---|---|
-| Region | Area/grouping for routes, users, vehicles and services |
-| Route | A service route passengers can use |
-| Stop | A pickup/drop-off point on a route |
-| Departure | A scheduled journey time for a route |
+| Organisation | A company, school, authority or operator |
+| Region | An area grouping routes, vehicles and drivers |
+| Route | A named service passengers can use |
+| Route Stop | A pickup or drop-off point on a route, with optional GPS coordinates and timetable offsets |
+| Departure | A scheduled journey time for a route (days of operation + time) |
 | Driver Session | A driver booked onto a specific route and departure |
-| Vehicle | Vehicle used by the driver |
-| Passenger User | User of the passenger app |
-| Ticket Product | A ticket type that can be free or paid |
-| Ticket Order | A passenger purchase or free claim |
-| Tracking Point | GPS update from a driver app |
-| Capacity Record | Current onboard/fill level for a live vehicle |
-| Activation Code | One-time or reusable code used to activate the driver app |
+| Vehicle | A vehicle registration managed by the platform |
+| Activation Code | A code used to activate the driver Android app |
+| Passenger User | An app or portal user account |
+| Ticket Product | A ticket that can be free or paid, with validity rules |
+| Ticket Order | A passenger's purchased or claimed ticket |
+| Tracking Point | A GPS update sent from the driver app |
+| Capacity Record | Current fill level of a live vehicle |
+| API Key | A hashed key for partner/integration access |
+| Audit Log | A write-operation record for compliance |
 
-## High-Level Workflow
-
-### Driver Flow
-
-1. Driver opens Android app.
-2. Driver enters activation code.
-3. App validates code against backend.
-4. Driver selects or enters UK vehicle registration.
-5. Driver enters driver name.
-6. Driver selects region.
-7. Driver selects route.
-8. Driver selects departure time.
-9. App starts tracking.
-10. Driver operates journey.
-11. App sends GPS, status and capacity updates.
-12. Driver ends journey.
-
-### Passenger Flow
-
-1. Passenger creates/logs into account.
-2. Passenger selects region.
-3. Passenger selects route.
-4. Region and route are stored against the account.
-5. Passenger views live bus location and ETA.
-6. Passenger buys or claims a free ticket.
-7. Passenger can view current and previous orders.
-8. Passenger can show a ticket QR/code if required.
-
-### Admin Flow
-
-1. Admin creates regions.
-2. Admin creates routes and stops.
-3. Admin creates route departure times.
-4. Admin creates ticket products.
-5. Admin creates driver app activation codes.
-6. Admin manages prefilled vehicle registrations.
-7. Control team monitors live drivers.
-8. Finance team reviews orders, revenue and usage.
-9. API users read live and historic data.
-
-## Main User Roles
+## User Roles
 
 | Role | Access |
 |---|---|
-| Super Admin | Full platform access |
+| Super Admin | Everything across all organisations |
 | Organisation Admin | Full access for their organisation |
-| Control User | Live tracking, route status, duty/session monitoring |
-| Finance User | Ticket sales, orders, payments and reports |
-| Driver App Manager | Activation codes, approved vehicle regs, app settings |
-| Route Planner | Regions, routes, stops and departure times |
-| Ticket Manager | Ticket products and ticket rules |
-| Read Only User | Dashboard and reports only |
-| API User | API key based access only |
+| Finance | Orders, payments, CSV exports |
+| Route Manager | Regions, routes, stops, departures |
+| Driver App Manager | Activation codes, vehicle registrations |
+| Control | Live tracking and driver sessions |
+| API Admin | API key management |
+| Read Only | View-only access |
 
-## MVP Scope
+## High-Level Workflows
 
-The first MVP should focus on:
+### Driver
 
-- Driver Android app activation
-- UK vehicle reg capture
-- Driver name capture
-- Region selection
-- Route selection
-- Departure time selection
-- Live GPS tracking
-- Web portal live tracking dashboard
-- Route/region/departure management
-- Driver app activation code management
+1. Open Android app.
+2. Enter activation code.
+3. Select or enter UK vehicle registration.
+4. Enter driver name.
+5. Select region, route, departure.
+6. Press Start Journey — app begins sending GPS.
+7. Update capacity as passengers board/alight.
+8. Press End Journey.
 
-Ticketing and passenger app can be added after the basic driver tracking loop works.
+### Passenger
+
+1. Register or log in via the app.
+2. Select region and route (saved against account).
+3. View live bus location and scheduled stop ETAs.
+4. Claim free ticket or buy a paid ticket.
+5. Show ticket QR code to the driver for boarding validation.
+6. View previous orders.
+
+### Admin (Web Portal)
+
+1. Create regions and routes.
+2. Add stops to routes with GPS coordinates and timetable offsets.
+3. Create departure times and operating days.
+4. Create ticket products (free or paid, single/day/week/month).
+5. Create driver activation codes.
+6. Add vehicle registrations.
+7. Monitor live tracking dashboard.
+8. Review finance orders and download CSV exports.
+9. Issue API keys to partners.
+10. Download GTFS feed for journey planner integration.
+
+## Platform Components
+
+```
+transport-saas-platform/
+├── backend/api/          NestJS REST API (port 3000)
+├── apps/web-portal/      React admin portal (port 5173 in dev)
+├── apps/passenger-app/   React PWA + Capacitor Android APK (port 5174 in dev)
+└── docs/                 All documentation
+```
+
+## Completed Build Phases
+
+| Phase | Delivered |
+|---|---|
+| 1 | Driver Android APK — activation, vehicle selection, GPS tracking, capacity |
+| 2 | NestJS backend — 15 entities, 10 modules, PostgreSQL, JWT auth |
+| 3 | Web portal — login, regions, routes, departures, live tracking, activation codes, vehicles |
+| 4 | Passenger PWA + Capacitor Android APK — login, map, live tracking, ETAs |
+| 5 | Ticketing — free ticket claim, ticket products, finance orders, ticket QR code |
+| 6 | API keys, partner REST API, finance/tracking CSV exports, audit log, web reports UI |
+| 7 | Boarding validation, stop-level ETAs, GTFS ZIP export, real QR code canvas |

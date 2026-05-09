@@ -1,431 +1,270 @@
 # Backend API
 
-## Objective
+## Overview
 
-The Backend API powers the driver app, passenger app, web portal, live tracking, ticketing, finance and third-party integrations.
+The backend is a NestJS REST API, using TypeORM + PostgreSQL, JWT authentication, and class-validator request validation.
 
-## Recommended Backend
+Source: `backend/api/`
 
-```text
-Node.js + NestJS
-PostgreSQL + PostGIS
-Redis
-JWT authentication
-REST API
-WebSockets or Server-Sent Events
+---
+
+## Setup
+
+### Prerequisites
+
+- Node.js v18 or later
+- PostgreSQL 14 or later running locally or via Docker
+- (Optional) pgAdmin or another Postgres client
+
+### Step 1 — Create the database
+
+```sql
+CREATE DATABASE transport_saas;
 ```
 
-## API Areas
+### Step 2 — Configure environment
 
-```text
-/auth
-/users
-/roles
-/regions
-/routes
-/stops
-/departures
-/driver-app
-/driver-sessions
-/tracking
-/capacity
-/passenger
-/tickets
-/orders
-/finance
-/api-keys
-/reports
+```bash
+cd backend/api
+cp .env.example .env
 ```
 
-## Driver App API
+Edit `.env`:
 
-### Validate Activation Code
+```env
+PORT=3000
+NODE_ENV=development
 
-```http
-POST /driver-app/activate
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=your-password-here
+DB_NAME=transport_saas
+
+# JWT (change these for any real deployment)
+JWT_SECRET=change-this-to-a-long-random-secret
+JWT_EXPIRES_IN=24h
+
+# Activation token (for driver app)
+ACTIVATION_TOKEN_SECRET=change-this-to-another-long-random-secret
+ACTIVATION_TOKEN_EXPIRES_IN=12h
 ```
 
-Request:
+| Variable | Purpose | Example |
+|---|---|---|
+| `PORT` | HTTP port | `3000` |
+| `DB_HOST` | Postgres hostname | `localhost` or `db` (Docker) |
+| `DB_PORT` | Postgres port | `5432` |
+| `DB_USERNAME` | Postgres username | `postgres` |
+| `DB_PASSWORD` | Postgres password | Set a strong value |
+| `DB_NAME` | Database name | `transport_saas` |
+| `JWT_SECRET` | Signs JWT tokens for portal/passenger users | Set a long random string |
+| `JWT_EXPIRES_IN` | JWT token lifetime | `24h`, `7d`, etc. |
+| `ACTIVATION_TOKEN_SECRET` | Signs driver activation tokens | Set a long random string |
+| `ACTIVATION_TOKEN_EXPIRES_IN` | Activation token lifetime | `12h` |
 
-```json
-{
-  "code": "ABC123",
-  "deviceId": "android-device-id"
-}
+### Step 3 — Install dependencies
+
+```bash
+npm install
 ```
 
-Response:
+### Step 4 — Start in development mode
 
-```json
-{
-  "activationToken": "token",
-  "organisationId": "org_001",
-  "allowedRegions": [],
-  "expiresAt": "2026-12-31T23:59:59Z"
-}
+```bash
+npm run start:dev
 ```
 
-### Get Vehicle Prefill List
+Starts NestJS with hot-reload (watch mode). TypeORM auto-migrates the schema on startup in development.
 
-```http
-GET /driver-app/vehicles
+### Step 5 — Verify
+
+```bash
+curl http://localhost:3000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"Test1234!","name":"Test User"}'
 ```
 
-Response:
+---
 
-```json
-[
-  {
-    "vehicleId": "veh_001",
-    "registration": "AB12 CDE",
-    "regionId": "reg_001",
-    "status": "active"
-  }
-]
+## Scripts
+
+| Script | Command | Purpose |
+|---|---|---|
+| `start:dev` | `nest start --watch` | Development with hot reload |
+| `build` | `nest build` | Compile to `dist/` |
+| `start:prod` | `node dist/main` | Run compiled production build |
+| `test` | `jest` | Unit tests |
+
+### TypeScript Check (no build)
+
+```bash
+node node_modules/typescript/bin/tsc --noEmit
 ```
 
-### Submit Driver Details
+> **Note:** Do not use `npx tsc` — on some systems this installs the wrong package. Use the local TypeScript binary directly.
 
-```http
-POST /driver-app/driver-details
-```
+---
 
-Request:
+## API Endpoints
 
-```json
-{
-  "activationToken": "token",
-  "driverName": "John Smith",
-  "vehicleRegistration": "AB12 CDE"
-}
-```
+### Auth
 
-### Get Regions
-
-```http
-GET /driver-app/regions
-```
-
-### Get Routes by Region
-
-```http
-GET /driver-app/regions/{regionId}/routes
-```
-
-### Get Departures by Route
-
-```http
-GET /driver-app/routes/{routeId}/departures?window=next-hour
-```
-
-### Create Driver Session
-
-```http
-POST /driver-sessions
-```
-
-Request:
-
-```json
-{
-  "routeId": "route_001",
-  "departureId": "dep_001",
-  "driverName": "John Smith",
-  "vehicleRegistration": "AB12 CDE"
-}
-```
-
-### Send Tracking Point
-
-```http
-POST /tracking/points
-```
-
-Request:
-
-```json
-{
-  "sessionId": "session_001",
-  "lat": 53.4808,
-  "lon": -2.2426,
-  "speed": 21.3,
-  "heading": 180,
-  "accuracy": 7,
-  "timestamp": "2026-05-09T14:30:00Z"
-}
-```
-
-### Send Capacity Update
-
-```http
-POST /capacity/update
-```
-
-Request:
-
-```json
-{
-  "sessionId": "session_001",
-  "capacityLevel": "medium"
-}
-```
-
-### End Driver Session
-
-```http
-POST /driver-sessions/{sessionId}/end
-```
-
-## Passenger App API
-
-### Register/Login
-
-```http
-POST /auth/register
-POST /auth/login
-```
-
-### Save Passenger Region and Route
-
-```http
-POST /passenger/preferences
-```
-
-Request:
-
-```json
-{
-  "regionId": "region_001",
-  "routeId": "route_001"
-}
-```
-
-### Get Passenger Dashboard
-
-```http
-GET /passenger/dashboard
-```
-
-Returns:
-
-- Saved region
-- Saved route
-- Active vehicles
-- ETA
-- Capacity
-- Available tickets
-- Active ticket
-
-### Get Live Vehicles for Route
-
-```http
-GET /passenger/routes/{routeId}/live
-```
-
-### Get Tickets for Route
-
-```http
-GET /passenger/routes/{routeId}/tickets
-```
-
-### Create Ticket Order
-
-```http
-POST /orders
-```
-
-Request for paid ticket:
-
-```json
-{
-  "ticketProductId": "ticket_001",
-  "paymentMethodId": "stripe_pm_123"
-}
-```
-
-Request for free ticket:
-
-```json
-{
-  "ticketProductId": "ticket_free_001"
-}
-```
-
-### Get Previous Orders
-
-```http
-GET /orders/my
-```
-
-## Web Portal API
-
-### Users
-
-```http
-GET /users
-POST /users
-PATCH /users/{userId}
-DELETE /users/{userId}
-```
-
-### Roles
-
-```http
-GET /roles
-POST /roles
-PATCH /roles/{roleId}
-```
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| POST | `/auth/register` | None | Register a new user |
+| POST | `/auth/login` | None | Login, returns JWT |
 
 ### Regions
 
-```http
-GET /regions
-POST /regions
-PATCH /regions/{regionId}
-```
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/regions` | JWT | List all regions |
+| POST | `/regions` | JWT | Create region |
+| GET | `/regions/:id` | JWT | Get one region |
+| PATCH | `/regions/:id` | JWT | Update region |
+| DELETE | `/regions/:id` | JWT | Delete region |
 
 ### Routes
 
-```http
-GET /routes
-POST /routes
-PATCH /routes/{routeId}
-```
-
-### Stops
-
-```http
-GET /routes/{routeId}/stops
-POST /routes/{routeId}/stops
-PATCH /stops/{stopId}
-DELETE /stops/{stopId}
-```
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/routes` | JWT | List all routes |
+| POST | `/routes` | JWT | Create route |
+| GET | `/routes/:id` | JWT | Get one route with stops |
+| PATCH | `/routes/:id` | JWT | Update route |
+| DELETE | `/routes/:id` | JWT | Delete route |
+| POST | `/routes/:id/stops` | JWT | Add stop to route |
+| PATCH | `/routes/:id/stops/:stopId` | JWT | Update stop |
+| DELETE | `/routes/:id/stops/:stopId` | JWT | Delete stop |
 
 ### Departures
 
-```http
-GET /routes/{routeId}/departures
-POST /routes/{routeId}/departures
-PATCH /departures/{departureId}
-DELETE /departures/{departureId}
-```
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/routes/:id/departures` | JWT | List departures for route |
+| POST | `/routes/:id/departures` | JWT | Create departure |
+| PATCH | `/departures/:id` | JWT | Update departure |
+| DELETE | `/departures/:id` | JWT | Delete departure |
+
+### Driver App (No Auth — Activation Token Only)
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| POST | `/driver-app/activate` | None | Exchange activation code for token |
+| GET | `/driver-app/regions` | None | List active regions |
+| GET | `/driver-app/regions/:id/routes` | None | Routes in a region |
+| GET | `/driver-app/routes/:id/departures` | None | Departures for a route |
+| GET | `/driver-app/routes/:id/stop-etas` | None | Stop ETAs (pass `?departureId=`) |
+| GET | `/driver-app/vehicles` | None | Prefilled vehicles (pass `?regionId=`) |
+
+### Driver Sessions
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| POST | `/driver-sessions` | Activation Token | Start a session |
+| GET | `/driver-sessions` | JWT | List all sessions |
+| GET | `/driver-sessions/active` | JWT | Live active sessions |
+| PATCH | `/driver-sessions/:id` | Activation Token | Update/end session |
+
+### Tracking
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| POST | `/tracking` | Activation Token | Submit a GPS point |
+| GET | `/tracking/:sessionId` | JWT | Get all points for a session |
+
+### Capacity
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| POST | `/capacity` | Activation Token | Update capacity |
+| GET | `/capacity/:sessionId` | JWT | Get capacity history |
 
 ### Activation Codes
 
-```http
-GET /driver-app/activation-codes
-POST /driver-app/activation-codes
-PATCH /driver-app/activation-codes/{codeId}
-```
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/activation-codes` | JWT | List all codes |
+| POST | `/activation-codes` | JWT | Create new code |
+| PATCH | `/activation-codes/:id` | JWT | Update code |
+| DELETE | `/activation-codes/:id` | JWT | Delete code |
 
 ### Vehicle Registrations
 
-```http
-GET /driver-app/vehicle-registrations
-POST /driver-app/vehicle-registrations
-POST /driver-app/vehicle-registrations/import
-PATCH /driver-app/vehicle-registrations/{vehicleId}
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/vehicles` | JWT | List vehicles |
+| POST | `/vehicles` | JWT | Add vehicle |
+| PATCH | `/vehicles/:id` | JWT | Update vehicle |
+| DELETE | `/vehicles/:id` | JWT | Remove vehicle |
+
+### Passenger Endpoints
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/passenger/regions` | None | Public region list |
+| GET | `/passenger/regions/:id/routes` | None | Routes in a region |
+| GET | `/passenger/routes/:id/departures` | None | Departures for a route |
+| GET | `/passenger/routes/:id/live` | None | Live bus position and capacity |
+
+### Ticketing
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/ticketing/public/products` | None | Available ticket products |
+| POST | `/ticketing/my/claim` | JWT | Claim a free ticket |
+| GET | `/ticketing/my/orders` | JWT | My ticket orders |
+| POST | `/ticketing/validate` | None* | Validate and board a ticket |
+| GET | `/ticketing/orders` | JWT | All orders (admin) |
+
+> `POST /ticketing/validate` is intentionally open (no JWT) — it requires a valid active `sessionId` to prevent misuse.
+
+### API Keys
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/api-keys` | JWT | List API keys |
+| POST | `/api-keys` | JWT | Create key — returns plain key once |
+| PATCH | `/api-keys/:id` | JWT | Update key |
+| DELETE | `/api-keys/:id` | JWT | Revoke key |
+
+### Reports
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/reports/tracking` | JWT | Tracking CSV download |
+| GET | `/reports/finance` | JWT | Finance CSV download |
+| GET | `/reports/export/gtfs` | JWT | GTFS ZIP download |
+| GET | `/partner/tracking` | API Key | Partner tracking CSV |
+| GET | `/partner/finance` | API Key | Partner finance CSV |
+| GET | `/partner/export/gtfs` | API Key | Partner GTFS ZIP |
+
+---
+
+## CORS
+
+CORS is enabled in `main.ts` for all origins in development:
+
+```ts
+app.enableCors();
 ```
 
-### Live Tracking
+For production, restrict to the portal and app origins:
 
-```http
-GET /tracking/live
-GET /tracking/sessions/{sessionId}
-GET /tracking/history
+```ts
+app.enableCors({ origin: ['https://portal.example.com', 'https://app.example.com'] });
 ```
 
-### API Access
+---
 
-```http
-GET /api-keys
-POST /api-keys
-PATCH /api-keys/{apiKeyId}
-DELETE /api-keys/{apiKeyId}
+## Production Build
+
+```bash
+cd backend/api
+npm run build
+NODE_ENV=production node dist/main
 ```
 
-## Public/Partner API
-
-The platform should expose an API for reading live transport data.
-
-Example endpoint:
-
-```http
-GET /api/v1/live/routes/{routeId}
-```
-
-Response:
-
-```json
-{
-  "routeId": "route_001",
-  "routeName": "MCR-001",
-  "activeVehicles": [
-    {
-      "vehicleRegistration": "AB12 CDE",
-      "lat": 53.4808,
-      "lon": -2.2426,
-      "lastUpdated": "2026-05-09T14:30:00Z",
-      "capacityLevel": "medium",
-      "etaMinutes": 8
-    }
-  ]
-}
-```
-
-## Backend Task List
-
-### Phase 1 — Core Setup
-
-- [ ] Create backend project
-- [ ] Add environment config
-- [ ] Add PostgreSQL connection
-- [ ] Add database migrations
-- [ ] Add authentication
-- [ ] Add roles/permissions
-
-### Phase 2 — Driver App API
-
-- [ ] Add activation code validation
-- [ ] Add vehicle prefill API
-- [ ] Add region API
-- [ ] Add route API
-- [ ] Add departure API
-- [ ] Add create driver session API
-- [ ] Add tracking point API
-- [ ] Add capacity update API
-
-### Phase 3 — Web Portal API
-
-- [ ] Add user management endpoints
-- [ ] Add role/profile endpoints
-- [ ] Add region management endpoints
-- [ ] Add route management endpoints
-- [ ] Add stop management endpoints
-- [ ] Add departure management endpoints
-- [ ] Add activation code management endpoints
-- [ ] Add vehicle registration management endpoints
-
-### Phase 4 — Passenger API
-
-- [ ] Add passenger preferences
-- [ ] Add live route service endpoint
-- [ ] Add ticket products endpoint
-- [ ] Add order creation
-- [ ] Add previous orders
-- [ ] Add active ticket endpoint
-
-### Phase 5 — Realtime
-
-- [ ] Add live tracking cache
-- [ ] Add WebSocket or SSE updates
-- [ ] Add live map feed
-- [ ] Add ETA calculation
-- [ ] Add capacity live update events
-
-### Phase 6 — API Keys
-
-- [ ] Add API key creation
-- [ ] Add API key permission model
-- [ ] Add API rate limits
-- [ ] Add audit logging
+Or use Docker — see [10-docker.md](10-docker.md).

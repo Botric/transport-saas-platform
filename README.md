@@ -1,62 +1,98 @@
 # Transport SaaS Platform
 
-A SaaS platform for home-to-school transport, workforce transport, shuttle services, contracted transport, and passenger route management.
+A fully built SaaS platform for managed passenger transport — home-to-school, workforce shuttles, contracted services and public shuttle routes.
 
-The platform includes:
+## What Is Built
 
-- Driver Android app
-- Passenger app
-- Web admin portal
-- Live tracking dashboard
-- Route and region management
-- Ticketing and free travel support
-- Vehicle capacity tracking
-- Driver activation codes
-- Finance tools
-- API access
-- Historical data and reporting
+| Phase | Description | Status |
+|---|---|---|
+| 1 | Driver Android APK (activation, tracking, capacity) | ✅ Done |
+| 2 | NestJS backend API + PostgreSQL (15 entities, 10 modules) | ✅ Done |
+| 3 | Web admin portal (React + Vite + Tailwind) | ✅ Done |
+| 4 | Passenger PWA + Capacitor Android APK | ✅ Done |
+| 5 | Ticketing — free ticket claim, QR codes, finance orders | ✅ Done |
+| 6 | API keys, partner API, CSV exports, audit log | ✅ Done |
+| 7 | Boarding validation, stop ETAs, GTFS export, real QR codes | ✅ Done |
 
-## Main Build Priority
+## Repository Structure
 
-The first focus is to build working Android APK files, starting with the Driver App.
-
-Recommended build order:
-
-1. Driver Android APK
-2. Backend API
-3. Admin Web Portal
-4. Passenger App
-5. Ticketing and Payments
-6. Reporting and Finance
-7. Public/API integrations
-
-## Project Structure
-
-```text
-transport-saas/
+```
+transport-saas-platform/
 ├── apps/
-│   ├── driver-android/
-│   ├── passenger-app/
-│   └── web-portal/
+│   ├── passenger-app/          React + Vite PWA + Capacitor Android
+│   └── web-portal/             React + Vite admin portal
 ├── backend/
-│   ├── api/
-│   ├── database/
-│   └── services/
-├── docs/
-│   ├── 01-product-overview.md
-│   ├── 02-driver-app.md
-│   ├── 03-passenger-app.md
-│   ├── 04-web-portal.md
-│   ├── 05-backend-api.md
-│   ├── 06-database-schema.md
-│   ├── 07-ticketing.md
-│   ├── 08-tracking.md
-│   ├── 09-github-vscode-setup.md
-│   └── 10-roadmap.md
+│   └── api/                    NestJS REST API
+├── docs/                       All documentation
+├── docker/                     Docker Compose files (see docs/10-docker.md)
 └── README.md
 ```
 
-## Suggested Tech Stack
+## Quick Start
+
+### 1. Backend
+
+```bash
+cd backend/api
+cp .env.example .env          # edit DB_PASSWORD, JWT_SECRET, ACTIVATION_TOKEN_SECRET
+npm install
+npm run start:dev
+```
+
+Backend runs at `http://localhost:3000`.
+
+### 2. Web Portal
+
+```bash
+cd apps/web-portal
+npm install
+npm run dev
+```
+
+Portal runs at `http://localhost:5173`. All `/api` calls are proxied to the backend.
+
+### 3. Passenger App (PWA)
+
+```bash
+cd apps/passenger-app
+npm install
+npm run dev
+```
+
+PWA runs at `http://localhost:5174`.
+
+### 4. Passenger App (Android APK)
+
+See [docs/03-passenger-app.md](docs/03-passenger-app.md) for the full APK build guide.
+
+## Documentation Index
+
+| File | Contents |
+|---|---|
+| [01-product-overview.md](docs/01-product-overview.md) | Platform purpose, roles, user flows |
+| [02-driver-app.md](docs/02-driver-app.md) | Driver Android APK — setup and build steps |
+| [03-passenger-app.md](docs/03-passenger-app.md) | Passenger app — PWA dev and Android APK build |
+| [04-web-portal.md](docs/04-web-portal.md) | Web portal — setup, modules, pages |
+| [05-backend-api.md](docs/05-backend-api.md) | Backend API reference — all endpoints |
+| [06-database-schema.md](docs/06-database-schema.md) | Database tables and entity descriptions |
+| [07-ticketing.md](docs/07-ticketing.md) | Ticketing, orders, QR validation |
+| [08-tracking.md](docs/08-tracking.md) | Live tracking, driver sessions, ETAs |
+| [09-github-vscode-setup.md](docs/09-github-vscode-setup.md) | Local dev setup, VS Code, Git |
+| [10-docker.md](docs/10-docker.md) | Docker Compose setup and config options |
+| [11-roadmap.md](docs/11-roadmap.md) | Phase roadmap and feature checklist |
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | NestJS, TypeORM, PostgreSQL, JWT, class-validator |
+| Web Portal | React 19, Vite, Tailwind CSS v4, React Router v7, TanStack Query v5 |
+| Passenger App | React 19, Vite, Tailwind CSS v4, Capacitor Android |
+| Maps | Leaflet + OpenStreetMap |
+| QR Codes | qrcode (canvas) |
+| CSV/GTFS | Built-in, adm-zip for GTFS |
+| API Auth | JWT (portal/passenger) + SHA-256 API keys (partner) |
+
 
 ### Android Apps
 
