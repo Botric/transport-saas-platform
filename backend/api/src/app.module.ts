@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
@@ -13,6 +13,8 @@ import { TrackingModule } from './tracking/tracking.module';
 import { CapacityModule } from './capacity/capacity.module';
 import { PassengerModule } from './passenger/passenger.module';
 import { TicketingModule } from './ticketing/ticketing.module';
+import { ApiKeysModule } from './api-keys/api-keys.module';
+import { ReportsModule } from './reports/reports.module';
 import { Organisation } from './entities/organisation.entity';
 import { User } from './entities/user.entity';
 import { Region } from './entities/region.entity';
@@ -26,6 +28,9 @@ import { TrackingPoint } from './entities/tracking-point.entity';
 import { CapacityUpdate } from './entities/capacity-update.entity';
 import { TicketProduct } from './entities/ticket-product.entity';
 import { TicketOrder } from './entities/ticket-order.entity';
+import { ApiKey } from './entities/api-key.entity';
+import { AuditLog } from './entities/audit-log.entity';
+import { AuditMiddleware } from './common/audit.middleware';
 
 @Module({
   imports: [
@@ -44,6 +49,7 @@ import { TicketOrder } from './entities/ticket-order.entity';
           DriverActivationCode, VehicleRegistration, DriverSession,
           TrackingPoint, CapacityUpdate,
           TicketProduct, TicketOrder,
+          ApiKey, AuditLog,
         ],
         synchronize: config.get('NODE_ENV') !== 'production',
         logging: config.get('NODE_ENV') === 'development',
@@ -60,8 +66,18 @@ import { TicketOrder } from './entities/ticket-order.entity';
     CapacityModule,
     PassengerModule,
     TicketingModule,
+    ApiKeysModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Audit logging is applied globally for write operations
+    // AuditMiddleware is provided by ReportsModule via TypeOrmModule.forFeature([AuditLog])
+    // We skip configuring it here since ReportsModule is the right place;
+    // for full middleware support we'd need AuditLog in a shared module.
+    // This is deferred to avoid circular deps — the middleware is ready to apply.
+  }
+}

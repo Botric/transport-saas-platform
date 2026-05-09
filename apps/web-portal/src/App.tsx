@@ -12,6 +12,8 @@ import ActivationCodesPage from './pages/driver-app/ActivationCodesPage'
 import VehiclesPage from './pages/driver-app/VehiclesPage'
 import TicketProductsPage from './pages/ticketing/TicketProductsPage'
 import FinanceOrdersPage from './pages/ticketing/FinanceOrdersPage'
+import ApiKeysPage from './pages/settings/ApiKeysPage'
+import ReportsPage from './pages/reports/ReportsPage'
 
 const queryClient = new QueryClient()
 
@@ -32,6 +34,8 @@ function App() {
                 <Route path="/vehicles" element={<VehiclesPage />} />
                 <Route path="/tickets" element={<TicketProductsPage />} />
                 <Route path="/finance" element={<FinanceOrdersPage />} />
+                <Route path="/api-keys" element={<ApiKeysPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

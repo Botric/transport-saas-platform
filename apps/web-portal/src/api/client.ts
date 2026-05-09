@@ -77,3 +77,39 @@ export const updateTicketProduct = (id: string, data: object) =>
 
 // Ticketing — orders (finance)
 export const getTicketOrders = () => api.get('/ticketing/orders').then((r) => r.data);
+
+// API Keys
+export const getApiKeys = () => api.get('/api-keys').then((r) => r.data);
+export const createApiKey = (data: object) => api.post('/api-keys', data).then((r) => r.data);
+export const updateApiKey = (id: string, data: object) =>
+  api.patch(`/api-keys/${id}`, data).then((r) => r.data);
+export const revokeApiKey = (id: string) => api.delete(`/api-keys/${id}`).then((r) => r.data);
+
+// Reports
+export const getReportLiveRoutes = () => api.get('/reports/live/routes').then((r) => r.data);
+export const getHistoricalSessions = (from?: string, to?: string) =>
+  api.get('/reports/history/sessions', { params: { from, to } }).then((r) => r.data);
+export const getAuditLogs = (limit = 200) =>
+  api.get('/reports/audit-logs', { params: { limit } }).then((r) => r.data);
+
+// Finance CSV export — returns a download URL to trigger via window.open
+export const financeExportUrl = (from?: string, to?: string) => {
+  const token = localStorage.getItem('token');
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  // We trigger downloads via a link with the auth header injected below
+  return { url: `/api/reports/export/finance?${params}`, token };
+};
+
+export const downloadCsv = (path: string, filename: string) => {
+  const token = localStorage.getItem('token');
+  fetch(path, { headers: { Authorization: `Bearer ${token}` } })
+    .then((r) => r.blob())
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    });
+};

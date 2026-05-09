@@ -106,3 +106,23 @@ export interface TicketOrder {
   status: string;
   createdAt: string;
 }
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: string;
+  status: string;
+  expiresAt?: string;
+  createdAt: string;
+  plainKey?: string; // only present once at creation
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actor: string;
+  action: string;
+  statusCode: number;
+  ipAddress: string;
+  createdAt: string;
+}
