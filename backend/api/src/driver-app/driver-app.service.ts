@@ -9,7 +9,11 @@ import { DriverActivationCode } from '../entities/driver-activation-code.entity'
 import { VehicleRegistration } from '../entities/vehicle-registration.entity';
 import { Region } from '../entities/region.entity';
 import { Route } from '../entities/route.entity';
-import { ActivateDto, DriverDetailsDto } from './driver-app.dto';
+import {
+  ActivateDto, DriverDetailsDto,
+  CreateActivationCodeDto, UpdateActivationCodeDto,
+  CreateVehicleRegistrationDto, UpdateVehicleRegistrationDto,
+} from './driver-app.dto';
 import { DeparturesService } from '../departures/departures.service';
 
 const UK_REG_RE = /^[A-Z]{2}[0-9]{2}\s?[A-Z]{3}$|^[A-Z][0-9]{1,3}\s?[A-Z]{3}$|^[A-Z]{3}\s?[0-9]{1,3}[A-Z]$|^[A-Z]{2}[0-9]{2,3}$|^[A-Z0-9]{2,7}$/i;
@@ -103,5 +107,48 @@ export class DriverAppService {
   getDepartures(routeId: string, window?: string) {
     if (window === 'next-hour') return this.departuresService.findNextHour(routeId);
     return this.departuresService.findByRoute(routeId);
+  }
+
+  // ─── Admin endpoints ──────────────────────────────────────────────────────
+
+  async listActivationCodes() {
+    return this.codeRepo.find({ order: { createdAt: 'DESC' } });
+  }
+
+  async createActivationCode(dto: CreateActivationCodeDto) {
+    const code = this.codeRepo.create({
+      code: dto.code.toUpperCase(),
+      regionId: dto.regionId,
+      maxUses: dto.maxUses,
+      expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
+      status: 'active',
+    });
+    return this.codeRepo.save(code);
+  }
+
+  async updateActivationCode(id: string, dto: UpdateActivationCodeDto) {
+    const code = await this.codeRepo.findOneBy({ id });
+    if (!code) throw new NotFoundException('Activation code not found');
+    Object.assign(code, dto);
+    return this.codeRepo.save(code);
+  }
+
+  async createVehicleRegistration(dto: CreateVehicleRegistrationDto) {
+    const vehicle = this.vehicleRepo.create({
+      registration: dto.registration.toUpperCase().trim(),
+      vehicleName: dto.vehicleName,
+      capacity: dto.capacity,
+      regionId: dto.regionId,
+      status: 'active',
+    });
+    return this.vehicleRepo.save(vehicle);
+  }
+
+  async updateVehicleRegistration(id: string, dto: UpdateVehicleRegistrationDto) {
+    const vehicle = await this.vehicleRepo.findOneBy({ id });
+    if (!vehicle) throw new NotFoundException('Vehicle registration not found');
+    if (dto.registration) dto.registration = dto.registration.toUpperCase().trim();
+    Object.assign(vehicle, dto);
+    return this.vehicleRepo.save(vehicle);
   }
 }

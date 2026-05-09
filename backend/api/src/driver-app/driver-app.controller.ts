@@ -1,10 +1,20 @@
-import { Controller, Post, Get, Body, Param, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller, Post, Get, Patch, Body, Param, Query,
+  HttpCode, HttpStatus, UseGuards,
+} from '@nestjs/common';
 import { DriverAppService } from './driver-app.service';
-import { ActivateDto, DriverDetailsDto } from './driver-app.dto';
+import {
+  ActivateDto, DriverDetailsDto,
+  CreateActivationCodeDto, UpdateActivationCodeDto,
+  CreateVehicleRegistrationDto, UpdateVehicleRegistrationDto,
+} from './driver-app.dto';
+import { JwtAuthGuard } from '../common/jwt-auth.guard';
 
 @Controller('driver-app')
 export class DriverAppController {
   constructor(private readonly driverAppService: DriverAppService) {}
+
+  // ─── Driver App (no JWT needed) ──────────────────────────────────────────
 
   @Post('activate')
   @HttpCode(HttpStatus.OK)
@@ -36,5 +46,37 @@ export class DriverAppController {
   @Get('routes/:routeId/departures')
   getDepartures(@Param('routeId') routeId: string, @Query('window') window?: string) {
     return this.driverAppService.getDepartures(routeId, window);
+  }
+
+  // ─── Admin endpoints (JWT required) ─────────────────────────────────────
+
+  @UseGuards(JwtAuthGuard)
+  @Get('activation-codes')
+  listActivationCodes() {
+    return this.driverAppService.listActivationCodes();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('activation-codes')
+  createActivationCode(@Body() dto: CreateActivationCodeDto) {
+    return this.driverAppService.createActivationCode(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('activation-codes/:id')
+  updateActivationCode(@Param('id') id: string, @Body() dto: UpdateActivationCodeDto) {
+    return this.driverAppService.updateActivationCode(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('vehicle-registrations')
+  createVehicleRegistration(@Body() dto: CreateVehicleRegistrationDto) {
+    return this.driverAppService.createVehicleRegistration(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('vehicle-registrations/:id')
+  updateVehicleRegistration(@Param('id') id: string, @Body() dto: UpdateVehicleRegistrationDto) {
+    return this.driverAppService.updateVehicleRegistration(id, dto);
   }
 }
