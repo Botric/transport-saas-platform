@@ -1,7 +1,14 @@
 import axios from 'axios';
 import type { Region, Route, Departure, LiveData, AuthResponse } from '../types';
 
-const api = axios.create({ baseURL: '/api' });
+// In development the Vite proxy rewrites /api → http://localhost:3000 (no prefix).
+// In a native Android build set VITE_API_URL=http://<host>:3000 at build time;
+// the Capacitor WebView will call that URL directly (paths still relative to root).
+const API_BASE = import.meta.env.VITE_API_URL
+  ? (import.meta.env.VITE_API_URL as string).replace(/\/$/, '')
+  : '/api';
+
+const api = axios.create({ baseURL: API_BASE });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('passenger_token');
