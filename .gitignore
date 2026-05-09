@@ -1,0 +1,40 @@
+# Node
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+
+# Android
+.gradle/
+local.properties
+*.apk
+*.aab
+apps/driver-android/app/release/
+apps/driver-android/app/debug/
+
+# IDE
+.vscode/settings.json
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Database
+*.sqlite
+*.db
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Secrets
+*.pem
+*.key

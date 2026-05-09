@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Driver App</string>
+    <string name="enter_activation_code">Enter activation code</string>
+    <string name="vehicle_registration">Vehicle registration</string>
+    <string name="driver_name">Driver name</string>
+    <string name="select_region">Select region</string>
+    <string name="select_route">Select route</string>
+    <string name="select_departure">Select departure time</string>
+    <string name="start_journey">Start Journey</string>
+    <string name="end_journey">End Journey</string>
+    <string name="view_more">View more departures</string>
+</resources>
