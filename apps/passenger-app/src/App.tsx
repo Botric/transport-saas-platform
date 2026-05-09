@@ -8,6 +8,7 @@ import RegisterPage from './pages/RegisterPage'
 import SetupPage from './pages/SetupPage'
 import DashboardPage from './pages/DashboardPage'
 import LiveMapPage from './pages/LiveMapPage'
+import TicketsPage from './pages/TicketsPage'
 import SettingsPage from './pages/SettingsPage'
 
 const queryClient = new QueryClient()
@@ -25,6 +26,7 @@ function App() {
               <Route element={<AppLayout />}>
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/map" element={<LiveMapPage />} />
+                <Route path="/tickets" element={<TicketsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>

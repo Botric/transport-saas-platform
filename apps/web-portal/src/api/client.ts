@@ -51,3 +51,29 @@ export const updateDeparture = (id: string, data: object) =>
 export const getActiveSessions = () => api.get('/driver-sessions').then((r) => r.data);
 export const endSession = (id: string) =>
   api.post(`/driver-sessions/${id}/end`).then((r) => r.data);
+
+// Activation Codes
+export const getActivationCodes = () => api.get('/driver-app/activation-codes').then((r) => r.data);
+export const createActivationCode = (data: object) =>
+  api.post('/driver-app/activation-codes', data).then((r) => r.data);
+export const updateActivationCode = (id: string, data: object) =>
+  api.patch(`/driver-app/activation-codes/${id}`, data).then((r) => r.data);
+
+// Vehicle Registrations
+export const getVehicles = () => api.get('/driver-app/vehicles').then((r) => r.data);
+export const createVehicle = (data: object) =>
+  api.post('/driver-app/vehicle-registrations', data).then((r) => r.data);
+export const updateVehicle = (id: string, data: object) =>
+  api.patch(`/driver-app/vehicle-registrations/${id}`, data).then((r) => r.data);
+
+// Ticketing — products
+export const getTicketProducts = () => api.get('/ticketing/products').then((r) => r.data);
+export const getTicketProduct = (id: string) =>
+  api.get(`/ticketing/products/${id}`).then((r) => r.data);
+export const createTicketProduct = (data: object) =>
+  api.post('/ticketing/products', data).then((r) => r.data);
+export const updateTicketProduct = (id: string, data: object) =>
+  api.patch(`/ticketing/products/${id}`, data).then((r) => r.data);
+
+// Ticketing — orders (finance)
+export const getTicketOrders = () => api.get('/ticketing/orders').then((r) => r.data);

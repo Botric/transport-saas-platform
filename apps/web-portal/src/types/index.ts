@@ -76,3 +76,33 @@ export interface DriverSession {
   lastCapacityLevel?: string;
   route?: Route;
 }
+
+export interface TicketProduct {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  isFree: boolean;
+  validityType: string;
+  maxUses?: number;
+  visible: boolean;
+  status: string;
+  routes: Route[];
+  createdAt: string;
+}
+
+export interface TicketOrder {
+  id: string;
+  userId: string;
+  ticketProductId: string;
+  ticketProduct?: TicketProduct;
+  user?: User;
+  paymentStatus: string;
+  paymentProvider?: string;
+  amountPaid: number;
+  ticketCode: string;
+  validFrom?: string;
+  validUntil?: string;
+  status: string;
+  createdAt: string;
+}

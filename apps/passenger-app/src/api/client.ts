@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Region, Route, Departure, LiveData, AuthResponse } from '../types';
+import type { Region, Route, Departure, LiveData, AuthResponse, TicketProduct, MyTicket } from '../types';
 
 // In development the Vite proxy rewrites /api → http://localhost:3000 (no prefix).
 // In a native Android build set VITE_API_URL=http://<host>:3000 at build time;
@@ -35,5 +35,15 @@ export const getDepartures = (routeId: string) =>
 
 export const getLive = (routeId: string) =>
   api.get<LiveData>(`/passenger/routes/${routeId}/live`).then((r) => r.data);
+
+// Ticketing
+export const getPublicTicketProducts = () =>
+  api.get<TicketProduct[]>('/ticketing/public/products').then((r) => r.data);
+
+export const getMyTickets = () =>
+  api.get<MyTicket[]>('/ticketing/my/orders').then((r) => r.data);
+
+export const claimTicket = (ticketProductId: string) =>
+  api.post<MyTicket>('/ticketing/my/claim', { ticketProductId }).then((r) => r.data);
 
 export default api;

@@ -55,3 +55,25 @@ export interface Prefs {
   routeName: string;
   routeCode: string;
 }
+
+export interface TicketProduct {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  isFree: boolean;
+  validityType: string;
+  routes: Route[];
+}
+
+export interface MyTicket {
+  id: string;
+  ticketCode: string;
+  paymentStatus: string;
+  amountPaid: number;
+  validFrom?: string;
+  validUntil?: string;
+  status: string;
+  createdAt: string;
+  ticketProduct?: TicketProduct;
+}

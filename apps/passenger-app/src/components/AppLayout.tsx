@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Home, Map, Settings } from 'lucide-react';
+import { Home, Map, Ticket, Settings } from 'lucide-react';
 
 export default function AppLayout() {
   return (
@@ -14,6 +14,7 @@ export default function AppLayout() {
         {[
           { to: '/', icon: Home, label: 'Home' },
           { to: '/map', icon: Map, label: 'Map' },
+          { to: '/tickets', icon: Ticket, label: 'Tickets' },
           { to: '/settings', icon: Settings, label: 'Settings' },
         ].map(({ to, icon: Icon, label }) => (
           <NavLink

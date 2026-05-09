@@ -12,6 +12,7 @@ import { DriverSessionsModule } from './driver-sessions/driver-sessions.module';
 import { TrackingModule } from './tracking/tracking.module';
 import { CapacityModule } from './capacity/capacity.module';
 import { PassengerModule } from './passenger/passenger.module';
+import { TicketingModule } from './ticketing/ticketing.module';
 import { Organisation } from './entities/organisation.entity';
 import { User } from './entities/user.entity';
 import { Region } from './entities/region.entity';
@@ -23,6 +24,8 @@ import { VehicleRegistration } from './entities/vehicle-registration.entity';
 import { DriverSession } from './entities/driver-session.entity';
 import { TrackingPoint } from './entities/tracking-point.entity';
 import { CapacityUpdate } from './entities/capacity-update.entity';
+import { TicketProduct } from './entities/ticket-product.entity';
+import { TicketOrder } from './entities/ticket-order.entity';
 
 @Module({
   imports: [
@@ -40,6 +43,7 @@ import { CapacityUpdate } from './entities/capacity-update.entity';
           Organisation, User, Region, Route, RouteStop, RouteDeparture,
           DriverActivationCode, VehicleRegistration, DriverSession,
           TrackingPoint, CapacityUpdate,
+          TicketProduct, TicketOrder,
         ],
         synchronize: config.get('NODE_ENV') !== 'production',
         logging: config.get('NODE_ENV') === 'development',
@@ -55,6 +59,7 @@ import { CapacityUpdate } from './entities/capacity-update.entity';
     TrackingModule,
     CapacityModule,
     PassengerModule,
+    TicketingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

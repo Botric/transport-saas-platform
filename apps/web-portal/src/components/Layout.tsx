@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  MapPin, Route, Clock, QrCode, Car, LayoutDashboard, LogOut,
+  MapPin, Route, Clock, QrCode, Car, LayoutDashboard, LogOut, Ticket, ReceiptText,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -11,6 +11,8 @@ const navItems = [
   { to: '/departures', label: 'Departures', icon: Clock },
   { to: '/activation-codes', label: 'Activation Codes', icon: QrCode },
   { to: '/vehicles', label: 'Vehicles', icon: Car },
+  { to: '/tickets', label: 'Ticket Products', icon: Ticket },
+  { to: '/finance', label: 'Finance', icon: ReceiptText },
 ];
 
 export default function Layout() {

@@ -10,6 +10,8 @@ import RoutesPage from './pages/routes/RoutesPage'
 import DeparturesPage from './pages/departures/DeparturesPage'
 import ActivationCodesPage from './pages/driver-app/ActivationCodesPage'
 import VehiclesPage from './pages/driver-app/VehiclesPage'
+import TicketProductsPage from './pages/ticketing/TicketProductsPage'
+import FinanceOrdersPage from './pages/ticketing/FinanceOrdersPage'
 
 const queryClient = new QueryClient()
 
@@ -28,6 +30,8 @@ function App() {
                 <Route path="/departures" element={<DeparturesPage />} />
                 <Route path="/activation-codes" element={<ActivationCodesPage />} />
                 <Route path="/vehicles" element={<VehiclesPage />} />
+                <Route path="/tickets" element={<TicketProductsPage />} />
+                <Route path="/finance" element={<FinanceOrdersPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
