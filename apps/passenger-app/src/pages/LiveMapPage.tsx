@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Icon } from 'leaflet';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
-import { getLive } from '../api/client';
+import { ArrowLeft, RefreshCw, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
+import { getLive, getStopEtas } from '../api/client';
 import type { Prefs, LiveData } from '../types';
 
 // Blue bus marker using a simple SVG data URL
@@ -28,6 +29,7 @@ function RecenterMap({ lat, lon }: { lat: number; lon: number }) {
 
 export default function LiveMapPage() {
   const navigate = useNavigate();
+  const [showStops, setShowStops] = useState(false);
   const prefs: Prefs | null = (() => {
     try { return JSON.parse(localStorage.getItem('passenger_prefs') ?? ''); }
     catch { return null; }
@@ -38,6 +40,13 @@ export default function LiveMapPage() {
     queryFn: () => getLive(prefs!.routeId),
     enabled: !!prefs,
     refetchInterval: 15_000,
+  });
+
+  const { data: stops = [] } = useQuery({
+    queryKey: ['stop-etas', prefs?.routeId, live?.nextDeparture?.id],
+    queryFn: () => getStopEtas(prefs!.routeId, live?.nextDeparture?.id),
+    enabled: !!prefs?.routeId,
+    staleTime: 60_000,
   });
 
   const session = live?.session;
@@ -101,8 +110,8 @@ export default function LiveMapPage() {
       {/* Bottom info card */}
       {session && (
         <div className="absolute bottom-0 left-0 right-0 z-[1000] px-4 pb-6 pointer-events-none">
-          <div className="bg-white rounded-2xl shadow-xl p-4 pointer-events-auto">
-            <div className="flex items-center gap-3">
+          <div className="bg-white rounded-2xl shadow-xl pointer-events-auto overflow-hidden">
+            <div className="p-4 flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-800">{session.vehicleRegistration}</p>
@@ -117,6 +126,38 @@ export default function LiveMapPage() {
                 </div>
               )}
             </div>
+            {/* Stops toggle */}
+            {stops.length > 0 && (
+              <>
+                <button
+                  onClick={() => setShowStops((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-2 border-t border-gray-100 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <MapPin size={14} className="text-blue-500" />
+                    {stops.length} stops
+                  </span>
+                  {showStops ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+                </button>
+                {showStops && (
+                  <div className="border-t border-gray-100 max-h-48 overflow-y-auto">
+                    {stops.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between px-4 py-2 text-sm border-b border-gray-50 last:border-0">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0">
+                            {s.stopOrder}
+                          </span>
+                          <span className="text-gray-700">{s.stopName}</span>
+                        </div>
+                        {s.scheduledEta && (
+                          <span className="text-xs font-semibold text-blue-600 shrink-0 ml-2">{s.scheduledEta}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}

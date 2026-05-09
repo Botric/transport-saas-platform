@@ -83,4 +83,10 @@ export class TicketingController {
   claimTicket(@Req() req: any, @Body() dto: ClaimTicketDto) {
     return this.ticketingService.claimFreeTicket(req.user.id, dto);
   }
-}
+  // ── Driver: boarding validation (no JWT — driver uses session token) ───────
+
+  @Post('validate')
+  @HttpCode(HttpStatus.OK)
+  validateTicket(@Body() body: { ticketCode: string; sessionId: string }) {
+    return this.ticketingService.validateTicket(body.ticketCode, body.sessionId);
+  }}

@@ -9,6 +9,8 @@ import { DriverActivationCode } from '../entities/driver-activation-code.entity'
 import { VehicleRegistration } from '../entities/vehicle-registration.entity';
 import { Region } from '../entities/region.entity';
 import { Route } from '../entities/route.entity';
+import { RouteStop } from '../entities/route-stop.entity';
+import { RouteDeparture } from '../entities/route-departure.entity';
 import {
   ActivateDto, DriverDetailsDto,
   CreateActivationCodeDto, UpdateActivationCodeDto,
@@ -25,6 +27,8 @@ export class DriverAppService {
     @InjectRepository(VehicleRegistration) private readonly vehicleRepo: Repository<VehicleRegistration>,
     @InjectRepository(Region) private readonly regionRepo: Repository<Region>,
     @InjectRepository(Route) private readonly routeRepo: Repository<Route>,
+    @InjectRepository(RouteStop) private readonly stopRepo: Repository<RouteStop>,
+    @InjectRepository(RouteDeparture) private readonly departureRepo: Repository<RouteDeparture>,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly departuresService: DeparturesService,
@@ -150,5 +154,42 @@ export class DriverAppService {
     if (dto.registration) dto.registration = dto.registration.toUpperCase().trim();
     Object.assign(vehicle, dto);
     return this.vehicleRepo.save(vehicle);
+  }
+
+  // ── Stop ETAs ───────────────────────────────────────────────────────────────
+
+  async getStopEtas(routeId: string, departureId?: string) {
+    const stops = await this.stopRepo.find({
+      where: { routeId, status: 'active' },
+      order: { stopOrder: 'ASC' },
+    });
+
+    let baseTimeMinutes: number | null = null;
+    if (departureId) {
+      const dep = await this.departureRepo.findOne({ where: { id: departureId } });
+      if (dep) {
+        const [h, m] = dep.departureTime.split(':').map(Number);
+        baseTimeMinutes = h * 60 + m;
+      }
+    }
+
+    return stops.map((s) => {
+      let scheduledEta: string | null = null;
+      if (baseTimeMinutes !== null && s.plannedArrivalOffsetMinutes != null) {
+        const totalMins = baseTimeMinutes + s.plannedArrivalOffsetMinutes;
+        const h = Math.floor(totalMins / 60) % 24;
+        const m = totalMins % 60;
+        scheduledEta = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      }
+      return {
+        id: s.id,
+        stopOrder: s.stopOrder,
+        stopName: s.stopName,
+        lat: s.lat,
+        lon: s.lon,
+        plannedArrivalOffsetMinutes: s.plannedArrivalOffsetMinutes,
+        scheduledEta,
+      };
+    });
   }
 }

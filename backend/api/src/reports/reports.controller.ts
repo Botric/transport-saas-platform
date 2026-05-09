@@ -62,6 +62,18 @@ export class PartnerController {
     res.setHeader('Content-Disposition', 'attachment; filename="tracking-export.csv"');
     res.send(csv);
   }
+
+  @Get('export/gtfs')
+  async gtfsExport(
+    @Headers('authorization') auth: string,
+    @Res() res: Response,
+  ) {
+    await this.reportsService.requireApiKey(auth, 'live:read');
+    const zip = await this.reportsService.getGtfsZip();
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="gtfs.zip"');
+    res.send(zip);
+  }
 }
 
 // ── Internal admin (JWT authenticated) ───────────────────────────────────────
@@ -109,6 +121,14 @@ export class ReportsController {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="tracking-export.csv"');
     res.send(csv);
+  }
+
+  @Get('export/gtfs')
+  async gtfsExport(@Res() res: Response) {
+    const zip = await this.reportsService.getGtfsZip();
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="gtfs.zip"');
+    res.send(zip);
   }
 
   @Get('audit-logs')

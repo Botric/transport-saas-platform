@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ticket, CheckCircle, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import QRCode from 'qrcode';
 import { getMyTickets, getPublicTicketProducts, claimTicket } from '../api/client';
 import type { MyTicket, TicketProduct } from '../types';
 
@@ -27,6 +28,20 @@ function StatusChip({ status }: { status: string }) {
       {status}
     </span>
   );
+}
+
+function TicketQR({ code }: { code: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (canvasRef.current) {
+      QRCode.toCanvas(canvasRef.current, code, {
+        margin: 1,
+        width: 192,
+        color: { dark: '#111827', light: '#ffffff' },
+      });
+    }
+  }, [code]);
+  return <canvas ref={canvasRef} className="rounded-lg" />;
 }
 
 function TicketCard({ ticket }: { ticket: MyTicket }) {
@@ -63,19 +78,7 @@ function TicketCard({ ticket }: { ticket: MyTicket }) {
       {open && (
         <div className="px-4 pb-4 border-t border-dashed border-blue-200">
           <div className="mt-3 bg-white rounded-xl p-4 flex flex-col items-center gap-2 border border-gray-200">
-            {/* Simulated QR block — large mono code as placeholder */}
-            <div className="grid grid-cols-4 gap-1 mb-1" aria-hidden>
-              {Array.from({ length: 16 }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-7 h-7 rounded ${
-                    ticket.ticketCode.charCodeAt(i % 8) % 2 === i % 2
-                      ? 'bg-gray-900'
-                      : 'bg-white border border-gray-200'
-                  }`}
-                />
-              ))}
-            </div>
+            <TicketQR code={ticket.ticketCode} />
             <p className="font-mono text-2xl font-bold tracking-[0.25em] text-gray-900 select-all">
               {ticket.ticketCode}
             </p>

@@ -4,6 +4,7 @@ import { Repository, In } from 'typeorm';
 import { TicketProduct } from '../entities/ticket-product.entity';
 import { Route } from '../entities/route.entity';
 import { TicketOrder } from '../entities/ticket-order.entity';
+import { DriverSession } from '../entities/driver-session.entity';
 import { CreateTicketProductDto, UpdateTicketProductDto } from './ticket-product.dto';
 import { ClaimTicketDto } from './ticket-order.dto';
 
@@ -34,6 +35,7 @@ export class TicketingService {
     @InjectRepository(TicketProduct) private productsRepo: Repository<TicketProduct>,
     @InjectRepository(Route)         private routesRepo: Repository<Route>,
     @InjectRepository(TicketOrder)   private ordersRepo: Repository<TicketOrder>,
+    @InjectRepository(DriverSession) private sessionsRepo: Repository<DriverSession>,
   ) {}
 
   // ── Ticket Products ────────────────────────────────────────────────────────
@@ -135,5 +137,38 @@ export class TicketingService {
       status: 'active',
     });
     return this.ordersRepo.save(order);
+  }
+
+  // ── Boarding validation ────────────────────────────────────────────────────
+
+  async validateTicket(ticketCode: string, sessionId: string) {
+    // Verify the session is active (prevents random guessing without a live session)
+    const session = await this.sessionsRepo.findOne({ where: { id: sessionId, status: 'active' } });
+    if (!session) {
+      return { valid: false, message: 'Session not found or no longer active' };
+    }
+
+    const order = await this.ordersRepo.findOne({
+      where: { ticketCode: ticketCode.toUpperCase() },
+      relations: ['ticketProduct', 'user'],
+    });
+    if (!order) return { valid: false, message: 'Ticket not found' };
+    if (order.status === 'used') return { valid: false, message: 'Ticket already used' };
+    if (order.status !== 'active') return { valid: false, message: `Ticket is ${order.status}` };
+    if (order.validUntil && new Date() > order.validUntil) {
+      return { valid: false, message: 'Ticket has expired' };
+    }
+
+    order.status = 'used';
+    order.boardedAt = new Date();
+    order.boardedSessionId = sessionId;
+    await this.ordersRepo.save(order);
+
+    return {
+      valid: true,
+      message: 'Ticket accepted — have a good journey',
+      ticketCode: order.ticketCode,
+      passenger: order.user?.name ?? null,
+    };
   }
 }

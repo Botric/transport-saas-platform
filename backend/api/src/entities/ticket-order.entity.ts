@@ -53,6 +53,13 @@ export class TicketOrder {
   @Column({ length: 20, default: 'active' })
   status: string;
 
+  // Boarding validation — set when driver scans ticket
+  @Column({ name: 'boarded_at', type: 'timestamptz', nullable: true })
+  boardedAt: Date;
+
+  @Column({ name: 'boarded_session_id', nullable: true })
+  boardedSessionId: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

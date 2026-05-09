@@ -3,21 +3,26 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import AdmZip from 'adm-zip';
 import { DriverSession } from '../entities/driver-session.entity';
 import { TrackingPoint } from '../entities/tracking-point.entity';
 import { TicketOrder } from '../entities/ticket-order.entity';
 import { AuditLog } from '../entities/audit-log.entity';
 import { ApiKeysService } from '../api-keys/api-keys.service';
 import { Route } from '../entities/route.entity';
+import { RouteStop } from '../entities/route-stop.entity';
+import { RouteDeparture } from '../entities/route-departure.entity';
 
 @Injectable()
 export class ReportsService {
   constructor(
-    @InjectRepository(DriverSession)  private sessionsRepo: Repository<DriverSession>,
-    @InjectRepository(TrackingPoint)  private trackingRepo: Repository<TrackingPoint>,
-    @InjectRepository(TicketOrder)    private ordersRepo: Repository<TicketOrder>,
-    @InjectRepository(AuditLog)       private auditRepo: Repository<AuditLog>,
-    @InjectRepository(Route)          private routesRepo: Repository<Route>,
+    @InjectRepository(DriverSession)   private sessionsRepo: Repository<DriverSession>,
+    @InjectRepository(TrackingPoint)   private trackingRepo: Repository<TrackingPoint>,
+    @InjectRepository(TicketOrder)     private ordersRepo: Repository<TicketOrder>,
+    @InjectRepository(AuditLog)        private auditRepo: Repository<AuditLog>,
+    @InjectRepository(Route)           private routesRepo: Repository<Route>,
+    @InjectRepository(RouteStop)       private stopsRepo: Repository<RouteStop>,
+    @InjectRepository(RouteDeparture)  private departuresRepo: Repository<RouteDeparture>,
     private apiKeysService: ApiKeysService,
   ) {}
 
@@ -147,5 +152,106 @@ export class ReportsService {
       order: { createdAt: 'DESC' },
       take: Math.min(limit, 1000),
     });
+  }
+
+  // ── GTFS Export ───────────────────────────────────────────────────────────
+
+  async getGtfsZip(): Promise<Buffer> {
+    const [routes, stops, departures] = await Promise.all([
+      this.routesRepo.find({ where: { status: 'active' }, order: { routeCode: 'ASC' } }),
+      this.stopsRepo.find({ where: { status: 'active' }, order: { routeId: 'ASC', stopOrder: 'ASC' } }),
+      this.departuresRepo.find({ where: { status: 'active' } }),
+    ]);
+
+    const csvEscape = (s: string) =>
+      s.includes(',') || s.includes('"') || s.includes('\n')
+        ? `"${s.replace(/"/g, '""')}"` : s;
+
+    const formatDate = (d: Date) => d.toISOString().replace(/-/g, '').slice(0, 8);
+    const formatTime = (totalMins: number) => {
+      const h = Math.floor(totalMins / 60);
+      const m = totalMins % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+    };
+
+    const today = formatDate(new Date());
+    const nextYear = formatDate(new Date(Date.now() + 365 * 86400000));
+
+    const zip = new AdmZip();
+
+    // agency.txt
+    zip.addFile('agency.txt', Buffer.from(
+      'agency_id,agency_name,agency_url,agency_timezone\n1,Transport Platform,https://example.com,Europe/London\n',
+      'utf8',
+    ));
+
+    // routes.txt (route_type 3 = bus)
+    const routeLines = ['route_id,agency_id,route_short_name,route_long_name,route_type'];
+    for (const r of routes) {
+      routeLines.push(`${r.id},1,${csvEscape(r.routeCode)},${csvEscape(r.routeName)},3`);
+    }
+    zip.addFile('routes.txt', Buffer.from(routeLines.join('\n') + '\n', 'utf8'));
+
+    // stops.txt
+    const stopLines = ['stop_id,stop_name,stop_lat,stop_lon'];
+    for (const s of stops) {
+      if (s.lat != null && s.lon != null) {
+        stopLines.push(`${s.id},${csvEscape(s.stopName)},${s.lat},${s.lon}`);
+      }
+    }
+    zip.addFile('stops.txt', Buffer.from(stopLines.join('\n') + '\n', 'utf8'));
+
+    // calendar.txt — one service_id per departure
+    const calLines = [
+      'service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date',
+    ];
+    for (const d of departures) {
+      const od = d.operatingDays ?? {};
+      calLines.push([
+        d.id,
+        od.mon ? 1 : 0, od.tue ? 1 : 0, od.wed ? 1 : 0,
+        od.thu ? 1 : 0, od.fri ? 1 : 0, od.sat ? 1 : 0, od.sun ? 1 : 0,
+        d.validFrom ?? today, d.validTo ?? nextYear,
+      ].join(','));
+    }
+    zip.addFile('calendar.txt', Buffer.from(calLines.join('\n') + '\n', 'utf8'));
+
+    // trips.txt
+    const tripLines = ['route_id,service_id,trip_id,trip_headsign'];
+    for (const d of departures) {
+      const route = routes.find((r) => r.id === d.routeId);
+      tripLines.push(`${d.routeId},${d.id},${d.id},${csvEscape(route?.routeName ?? '')}`);
+    }
+    zip.addFile('trips.txt', Buffer.from(tripLines.join('\n') + '\n', 'utf8'));
+
+    // stop_times.txt
+    const stopsByRoute = new Map<string, typeof stops>();
+    for (const s of stops) {
+      if (!stopsByRoute.has(s.routeId)) stopsByRoute.set(s.routeId, []);
+      stopsByRoute.get(s.routeId)!.push(s);
+    }
+
+    const stLines = ['trip_id,arrival_time,departure_time,stop_id,stop_sequence'];
+    for (const dep of departures) {
+      const routeStops = stopsByRoute.get(dep.routeId) ?? [];
+      const [depH, depM] = dep.departureTime.split(':').map(Number);
+      const depMins = depH * 60 + depM;
+      for (const s of routeStops) {
+        if (s.lat == null || s.lon == null) continue;
+        const offset = s.plannedArrivalOffsetMinutes ?? 0;
+        const t = formatTime(depMins + offset);
+        stLines.push(`${dep.id},${t},${t},${s.id},${s.stopOrder}`);
+      }
+    }
+    zip.addFile('stop_times.txt', Buffer.from(stLines.join('\n') + '\n', 'utf8'));
+
+    // feed_info.txt (optional but recommended)
+    zip.addFile('feed_info.txt', Buffer.from(
+      'feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\n' +
+      `Transport Platform,https://example.com,en,${today},${nextYear}\n`,
+      'utf8',
+    ));
+
+    return zip.toBuffer();
   }
 }

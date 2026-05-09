@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, Download, Activity, History, FileText, Shield } from 'lucide-react';
+import { BarChart3, Download, Activity, History, FileText, Shield, Globe } from 'lucide-react';
 import { PageHeader } from '../../components/ui';
 import {
   getReportLiveRoutes,
@@ -150,6 +150,27 @@ export default function ReportsPage() {
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
           >
             <Download size={15} /> Download Tracking CSV
+          </button>
+        </div>
+      </section>
+
+      {/* GTFS export */}
+      <section>
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+          <Globe size={15} /> GTFS Export
+        </h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-gray-700 font-medium">GTFS Feed (ZIP)</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              agency, routes, stops, trips, stop_times and calendar files ready for journey planners.
+            </p>
+          </div>
+          <button
+            onClick={() => downloadCsv('/api/reports/export/gtfs', 'gtfs.zip')}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
+          >
+            <Download size={15} /> Download GTFS ZIP
           </button>
         </div>
       </section>

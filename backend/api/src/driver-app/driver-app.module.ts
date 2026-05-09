@@ -8,11 +8,13 @@ import { DriverActivationCode } from '../entities/driver-activation-code.entity'
 import { VehicleRegistration } from '../entities/vehicle-registration.entity';
 import { Region } from '../entities/region.entity';
 import { Route } from '../entities/route.entity';
+import { RouteStop } from '../entities/route-stop.entity';
+import { RouteDeparture } from '../entities/route-departure.entity';
 import { DeparturesModule } from '../departures/departures.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([DriverActivationCode, VehicleRegistration, Region, Route]),
+    TypeOrmModule.forFeature([DriverActivationCode, VehicleRegistration, Region, Route, RouteStop, RouteDeparture]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({

@@ -46,4 +46,20 @@ export const getMyTickets = () =>
 export const claimTicket = (ticketProductId: string) =>
   api.post<MyTicket>('/ticketing/my/claim', { ticketProductId }).then((r) => r.data);
 
+// Stop ETAs (no auth needed — public driver-app endpoint)
+export const getStopEtas = (routeId: string, departureId?: string) =>
+  api.get(`/driver-app/routes/${routeId}/stop-etas`, {
+    params: departureId ? { departureId } : {},
+  }).then((r) => r.data as StopEta[]);
+
+export interface StopEta {
+  id: string;
+  stopOrder: number;
+  stopName: string;
+  lat: number | null;
+  lon: number | null;
+  plannedArrivalOffsetMinutes: number | null;
+  scheduledEta: string | null; // 'HH:MM' or null
+}
+
 export default api;

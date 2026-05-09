@@ -47,7 +47,13 @@ export class DriverAppController {
   getDepartures(@Param('routeId') routeId: string, @Query('window') window?: string) {
     return this.driverAppService.getDepartures(routeId, window);
   }
-
+  @Get('routes/:routeId/stop-etas')
+  getStopEtas(
+    @Param('routeId') routeId: string,
+    @Query('departureId') departureId?: string,
+  ) {
+    return this.driverAppService.getStopEtas(routeId, departureId);
+  }
   // ─── Admin endpoints (JWT required) ─────────────────────────────────────
 
   @UseGuards(JwtAuthGuard)
