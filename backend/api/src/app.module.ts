@@ -11,6 +11,7 @@ import { DriverAppModule } from './driver-app/driver-app.module';
 import { DriverSessionsModule } from './driver-sessions/driver-sessions.module';
 import { TrackingModule } from './tracking/tracking.module';
 import { CapacityModule } from './capacity/capacity.module';
+import { PassengerModule } from './passenger/passenger.module';
 import { Organisation } from './entities/organisation.entity';
 import { User } from './entities/user.entity';
 import { Region } from './entities/region.entity';
@@ -53,6 +54,7 @@ import { CapacityUpdate } from './entities/capacity-update.entity';
     DriverSessionsModule,
     TrackingModule,
     CapacityModule,
+    PassengerModule,
   ],
   controllers: [AppController],
   providers: [AppService],

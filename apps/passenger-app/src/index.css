@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* Ensure Leaflet containers render correctly */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* Safe area padding for iOS home bar */
+.safe-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
