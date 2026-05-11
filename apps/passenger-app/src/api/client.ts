@@ -46,6 +46,29 @@ export const getMyTickets = () =>
 export const claimTicket = (ticketProductId: string) =>
   api.post<MyTicket>('/ticketing/my/claim', { ticketProductId }).then((r) => r.data);
 
+export interface PaymentCheckoutResult {
+  checkoutUrl: string | null;
+  orderId: string;
+  amount: number;
+  currency: string;
+}
+
+/** Create a Stripe Checkout Session for a paid ticket — returns the hosted checkout URL */
+export const createPaymentIntent = (ticketProductId: string) =>
+  api.post<PaymentCheckoutResult>('/payments/intent', { ticketProductId }).then((r) => r.data);
+
+/** Poll for order status after payment */
+export const getPaymentOrder = (orderId: string) =>
+  api.get<MyTicket>(`/payments/orders/${orderId}`).then((r) => r.data);
+
+/** Register FCM device token for push notifications */
+export const registerFcmToken = (fcmToken: string) =>
+  api.post('/notifications/token', { fcmToken }).then((r) => r.data);
+
+/** Remove FCM device token on logout */
+export const removeFcmToken = () =>
+  api.delete('/notifications/token').then((r) => r.data);
+
 // Stop ETAs (no auth needed — public driver-app endpoint)
 export const getStopEtas = (routeId: string, departureId?: string) =>
   api.get(`/driver-app/routes/${routeId}/stop-etas`, {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { getRegions, createRegion, updateRegion } from '../../api/client';
-import { Region } from '../../types';
+import type { Region } from '../../types';
 import { PageHeader, DataTable, StatusBadge } from '../../components/ui';
 
 export default function RegionsPage() {

@@ -29,6 +29,10 @@ export class CreateTicketProductDto {
   @IsArray()
   @IsString({ each: true })
   routeIds: string[];
+
+  @IsOptional()
+  @IsString()
+  organisationId?: string;
 }
 
 export class UpdateTicketProductDto {

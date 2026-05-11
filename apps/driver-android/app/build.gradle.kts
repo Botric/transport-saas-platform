@@ -13,6 +13,11 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+        // API base URL injected at build time via -PAPI_BASE_URL gradle property.
+        // Falls back to localhost for local development / emulator (10.0.2.2 = host machine).
+        val apiBaseUrl: String = (project.findProperty("API_BASE_URL") as String?)
+            ?: "http://10.0.2.2:3000"
+        buildConfigField("String", "API_BASE_URL", "\"${apiBaseUrl.trimEnd('/')}\"")
     }
 
     buildTypes {

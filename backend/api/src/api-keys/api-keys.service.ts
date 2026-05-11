@@ -1,9 +1,12 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { createHash, randomBytes } from 'crypto';
 import { ApiKey } from '../entities/api-key.entity';
 import { CreateApiKeyDto, UpdateApiKeyDto } from './api-key.dto';
+
+type AuthenticatedUser = { id: string; role: string; organisationId: string | null };
+function isGlobalAdmin(user: AuthenticatedUser) { return user.role === 'super_admin'; }
 
 @Injectable()
 export class ApiKeysService {
@@ -15,11 +18,22 @@ export class ApiKeysService {
     return createHash('sha256').update(plain).digest('hex');
   }
 
-  async list() {
-    return this.repo.find({ order: { createdAt: 'DESC' } });
+  async list(user?: AuthenticatedUser) {
+    const where: any = {};
+    if (user && !isGlobalAdmin(user) && user.organisationId) {
+      where.organisationId = user.organisationId;
+    }
+    return this.repo.find({ where, order: { createdAt: 'DESC' } });
   }
 
-  async create(userId: string, dto: CreateApiKeyDto): Promise<ApiKey & { plainKey: string }> {
+  async create(userId: string, dto: CreateApiKeyDto, user?: AuthenticatedUser): Promise<ApiKey & { plainKey: string }> {
+    if (user && !isGlobalAdmin(user) && !user.organisationId) {
+      throw new ForbiddenException('User is not assigned to an organisation');
+    }
+    const organisationId = user
+      ? (isGlobalAdmin(user) ? (dto.organisationId ?? user.organisationId ?? null) : user.organisationId)
+      : null;
+
     // Generate a cryptographically secure key: "tsk_" prefix + 32 random hex bytes
     const plain = 'tsk_' + randomBytes(32).toString('hex');
     const keyHash = this.hash(plain);
@@ -30,6 +44,7 @@ export class ApiKeysService {
       keyHash,
       keyPrefix,
       createdByUserId: userId,
+      organisationId: organisationId ?? undefined,
       scopes: (dto.scopes ?? ['live:read']).join(','),
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
       status: 'active',
@@ -38,15 +53,18 @@ export class ApiKeysService {
     return { ...saved, plainKey: plain };
   }
 
-  async update(id: string, dto: UpdateApiKeyDto) {
+  async update(id: string, dto: UpdateApiKeyDto, user?: AuthenticatedUser) {
     const key = await this.repo.findOneBy({ id });
     if (!key) throw new NotFoundException('API key not found');
+    if (user && !isGlobalAdmin(user) && user.organisationId && key.organisationId !== user.organisationId) {
+      throw new NotFoundException('API key not found');
+    }
     Object.assign(key, dto);
     return this.repo.save(key);
   }
 
-  async revoke(id: string) {
-    return this.update(id, { status: 'revoked' });
+  async revoke(id: string, user?: AuthenticatedUser) {
+    return this.update(id, { status: 'revoked' }, user);
   }
 
   /** Validate a raw API key sent in Authorization: Bearer header or X-API-Key header */

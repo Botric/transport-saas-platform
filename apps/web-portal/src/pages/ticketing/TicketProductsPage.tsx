@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, ToggleLeft, ToggleRight, Ticket } from 'lucide-react';
+import { Edit, ToggleLeft, ToggleRight, Ticket, Download, Smartphone } from 'lucide-react';
 import { PageHeader, StatusBadge } from '../../components/ui';
 import { getTicketProducts, createTicketProduct, updateTicketProduct, getRoutes } from '../../api/client';
 import type { TicketProduct, Route } from '../../types';
@@ -98,9 +98,30 @@ export default function TicketProductsPage() {
     <div className="p-6">
       <PageHeader
         title="Ticket Products"
-        subtitle="Define free and paid tickets linked to routes"
-        action={{ label: 'New Product', onClick: openNew }}
+        description="Define free and paid tickets linked to routes"
+        action={
+          <button onClick={openNew}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            New Product
+          </button>
+        }
       />
+
+      {/* Passenger APK download banner */}
+      <div className="mx-6 mt-2 mb-4 flex items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3">
+        <Smartphone size={28} className="text-emerald-600 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-emerald-900">Passenger App (Android)</p>
+          <p className="text-xs text-emerald-700">Share this APK with passengers so they can buy tickets below.</p>
+        </div>
+        <a
+          href="/apks/tango-passenger.apk"
+          download="tango-passenger.apk"
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
+        >
+          <Download size={14} /> Download APK
+        </a>
+      </div>
 
       {isLoading && <p className="text-gray-500">Loading…</p>}
 

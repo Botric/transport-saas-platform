@@ -1,30 +1,45 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Req, UseGuards } from '@nestjs/common';
 import { RegionsService } from './regions.service';
 import { CreateRegionDto } from './regions.dto';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
+import { Roles } from '../common/roles.decorator';
+import { RolesGuard } from '../common/roles.guard';
+
+type AuthenticatedRequest = {
+  user: {
+    id: string;
+    role: string;
+    organisationId: string | null;
+  };
+};
 
 @Controller('regions')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('route_manager')
 export class RegionsController {
   constructor(private readonly regionsService: RegionsService) {}
 
   @Get()
-  findAll() {
-    return this.regionsService.findAll();
+  findAll(@Req() req: AuthenticatedRequest) {
+    return this.regionsService.findAll(req.user);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.regionsService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.regionsService.findOne(id, req.user);
   }
 
   @Post()
-  create(@Body() dto: CreateRegionDto) {
-    return this.regionsService.create(dto);
+  create(@Body() dto: CreateRegionDto, @Req() req: AuthenticatedRequest) {
+    return this.regionsService.create(dto, req.user);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: Partial<CreateRegionDto>) {
-    return this.regionsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: Partial<CreateRegionDto>,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.regionsService.update(id, dto, req.user);
   }
 }

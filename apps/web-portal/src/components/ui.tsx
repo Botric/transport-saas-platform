@@ -1,19 +1,42 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
+
+type HeaderAction = ReactNode | {
+  label: string;
+  onClick: () => void;
+};
 
 interface PageHeaderProps {
   title: string;
   description?: string;
-  action?: ReactNode;
+  subtitle?: string;
+  action?: HeaderAction;
 }
 
-export function PageHeader({ title, description, action }: PageHeaderProps) {
+function isActionConfig(action: HeaderAction | undefined): action is { label: string; onClick: () => void } {
+  return typeof action === 'object'
+    && action !== null
+    && 'label' in action
+    && 'onClick' in action;
+}
+
+export function PageHeader({ title, description, subtitle, action }: PageHeaderProps) {
+  const detail = description ?? subtitle;
+
   return (
     <div className="px-6 py-4 border-b bg-white flex items-center justify-between">
       <div>
         <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
-        {description && <p className="text-xs text-gray-500 mt-0.5">{description}</p>}
+        {detail && <p className="text-xs text-gray-500 mt-0.5">{detail}</p>}
       </div>
-      {action}
+      {isActionConfig(action) ? (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+        >
+          {action.label}
+        </button>
+      ) : action}
     </div>
   );
 }

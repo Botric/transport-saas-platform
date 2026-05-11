@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import api from '../../api/client';
-import { VehicleRegistration, Region } from '../../types';
+import type { VehicleRegistration, Region } from '../../types';
 import { getRegions } from '../../api/client';
 import { PageHeader, DataTable, StatusBadge } from '../../components/ui';
 
-const getVehicles = () => api.get('/driver-app/vehicles').then((r) => r.data);
+const getVehicles = () => api.get('/driver-app/vehicle-registrations').then((r) => r.data);
 const createVehicle = (data: object) => api.post('/driver-app/vehicle-registrations', data).then((r) => r.data);
 const updateVehicle = (id: string, data: object) => api.patch(`/driver-app/vehicle-registrations/${id}`, data).then((r) => r.data);
 

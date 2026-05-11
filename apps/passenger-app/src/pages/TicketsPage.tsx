@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Ticket, CheckCircle, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { Ticket, CheckCircle, ChevronDown, ChevronUp, Plus, Loader2 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { getMyTickets, getPublicTicketProducts, claimTicket } from '../api/client';
+import {
+  getMyTickets, getPublicTicketProducts, claimTicket,
+  createPaymentIntent, getPaymentOrder,
+} from '../api/client';
 import type { MyTicket, TicketProduct } from '../types';
 
 function validityLabel(type: string) {
@@ -112,7 +115,7 @@ function TicketCard({ ticket }: { ticket: MyTicket }) {
   );
 }
 
-function ProductCard({ product, onClaim }: { product: TicketProduct; onClaim: (id: string) => void }) {
+function ProductCard({ product, onClaim }: { product: TicketProduct; onClaim: (product: TicketProduct) => void }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-4 flex items-center justify-between gap-3">
       <div>
@@ -123,7 +126,7 @@ function ProductCard({ product, onClaim }: { product: TicketProduct; onClaim: (i
         </p>
       </div>
       <button
-        onClick={() => onClaim(product.id)}
+        onClick={() => onClaim(product)}
         className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-semibold px-3 py-2 rounded-xl hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
       >
         <Plus size={14} />
@@ -137,6 +140,8 @@ export default function TicketsPage() {
   const qc = useQueryClient();
   const [showProducts, setShowProducts] = useState(false);
   const [claimedId, setClaimedId] = useState<string | null>(null);
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const { data: tickets = [], isLoading: ticketsLoading } = useQuery<MyTicket[]>({
     queryKey: ['my-tickets'],
@@ -158,6 +163,61 @@ export default function TicketsPage() {
     },
   });
 
+  const startPaidPayment = useMutation({
+    mutationFn: (ticketProductId: string) => createPaymentIntent(ticketProductId),
+    onSuccess: async (result) => {
+      setShowProducts(false);
+      setPaymentError(null);
+      setPendingOrderId(result.orderId);
+      if (!result.checkoutUrl) {
+        setPaymentError('Payment checkout could not be started.');
+        setPendingOrderId(null);
+        return;
+      }
+
+      try {
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ url: result.checkoutUrl });
+      } catch {
+        window.open(result.checkoutUrl, '_blank');
+      }
+    },
+    onError: () => {
+      setPaymentError('Payment could not be started. Please try again.');
+    },
+  });
+
+  // Poll for order completion every 3 seconds when there's a pending order
+  useEffect(() => {
+    if (!pendingOrderId) return;
+    const interval = setInterval(async () => {
+      try {
+        const order = await getPaymentOrder(pendingOrderId);
+        if (order.paymentStatus === 'paid') {
+          clearInterval(interval);
+          setPendingOrderId(null);
+          setClaimedId(order.id);
+          qc.invalidateQueries({ queryKey: ['my-tickets'] });
+        } else if (order.paymentStatus === 'cancelled' || (order as any).status === 'cancelled') {
+          clearInterval(interval);
+          setPendingOrderId(null);
+          setPaymentError('Payment was not completed. Please try again.');
+        }
+      } catch {
+        // Silently retry on network error
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [pendingOrderId, qc]);
+
+  const handleProductAction = (product: TicketProduct) => {
+    if (product.isFree || product.price === 0) {
+      claim.mutate(product.id);
+    } else {
+      startPaidPayment.mutate(product.id);
+    }
+  };
+
   const active = tickets.filter((t) => t.status === 'active');
   const past = tickets.filter((t) => t.status !== 'active');
 
@@ -176,6 +236,21 @@ export default function TicketsPage() {
           <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-center gap-2">
             <CheckCircle size={18} className="text-green-600 shrink-0" />
             <p className="text-sm text-green-700 font-medium">Ticket claimed! Tap it below to view your code.</p>
+          </div>
+        )}
+
+        {/* Payment pending banner */}
+        {pendingOrderId && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex items-center gap-2">
+            <Loader2 size={18} className="text-blue-600 shrink-0 animate-spin" />
+            <p className="text-sm text-blue-700 font-medium">Waiting for payment confirmation…</p>
+          </div>
+        )}
+
+        {/* Payment error */}
+        {paymentError && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-3">
+            <p className="text-sm text-red-700">{paymentError}</p>
           </div>
         )}
 
@@ -199,11 +274,11 @@ export default function TicketsPage() {
               <ProductCard
                 key={p.id}
                 product={p}
-                onClaim={(id) => claim.mutate(id)}
+                onClaim={handleProductAction}
               />
             ))}
-            {claim.isError && (
-              <p className="text-sm text-red-600 text-center">Failed to claim ticket. Please try again.</p>
+            {(claim.isError || startPaidPayment.isError) && (
+              <p className="text-sm text-red-600 text-center">Failed to start. Please try again.</p>
             )}
           </div>
         )}

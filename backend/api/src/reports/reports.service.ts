@@ -2,7 +2,7 @@ import {
   Injectable, UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { Repository, Between, MoreThanOrEqual, LessThanOrEqual, In } from 'typeorm';
 import AdmZip from 'adm-zip';
 import { DriverSession } from '../entities/driver-session.entity';
 import { TrackingPoint } from '../entities/tracking-point.entity';
@@ -12,6 +12,9 @@ import { ApiKeysService } from '../api-keys/api-keys.service';
 import { Route } from '../entities/route.entity';
 import { RouteStop } from '../entities/route-stop.entity';
 import { RouteDeparture } from '../entities/route-departure.entity';
+
+type AuthenticatedUser = { id: string; role: string; organisationId: string | null };
+function isGlobalAdmin(user: AuthenticatedUser) { return user.role === 'super_admin'; }
 
 @Injectable()
 export class ReportsService {
@@ -33,11 +36,24 @@ export class ReportsService {
     return this.apiKeysService.validateKey(plain, scope);
   }
 
+  /** Return route IDs scoped to org, or undefined for all */
+  private async scopedRouteIds(user?: AuthenticatedUser): Promise<string[] | undefined> {
+    if (!user || isGlobalAdmin(user) || !user.organisationId) return undefined;
+    const routes = await this.routesRepo.find({
+      where: { organisationId: user.organisationId, status: 'active' },
+      select: ['id'],
+    });
+    return routes.map((r) => r.id);
+  }
+
   // ── Live ──────────────────────────────────────────────────────────────────
 
-  async getLiveRoutes() {
+  async getLiveRoutes(user?: AuthenticatedUser) {
+    const routeIds = await this.scopedRouteIds(user);
+    const where: any = { status: 'active' };
+    if (routeIds) where.routeId = In(routeIds);
     const sessions = await this.sessionsRepo.find({
-      where: { status: 'active' },
+      where,
       relations: ['route'],
       order: { startedAt: 'DESC' },
     });
@@ -56,9 +72,12 @@ export class ReportsService {
     }));
   }
 
-  async getLiveVehicles() {
+  async getLiveVehicles(user?: AuthenticatedUser) {
+    const routeIds = await this.scopedRouteIds(user);
+    const where: any = { status: 'active' };
+    if (routeIds) where.routeId = In(routeIds);
     return this.sessionsRepo.find({
-      where: { status: 'active' },
+      where,
       select: ['id', 'vehicleRegistration', 'lastLat', 'lastLon', 'lastTrackingAt', 'lastCapacityLevel', 'startedAt'],
       order: { lastTrackingAt: 'DESC' },
     });
@@ -66,8 +85,10 @@ export class ReportsService {
 
   // ── Historical ────────────────────────────────────────────────────────────
 
-  async getHistoricalSessions(from?: string, to?: string) {
+  async getHistoricalSessions(user?: AuthenticatedUser, from?: string, to?: string) {
+    const routeIds = await this.scopedRouteIds(user);
     const where: any = { status: 'ended' };
+    if (routeIds) where.routeId = In(routeIds);
     if (from && to) {
       where.startedAt = Between(new Date(from), new Date(to));
     } else if (from) {
@@ -85,8 +106,12 @@ export class ReportsService {
 
   // ── Finance CSV ───────────────────────────────────────────────────────────
 
-  async financeExportCsv(from?: string, to?: string): Promise<string> {
+  async financeExportCsv(user?: AuthenticatedUser, from?: string, to?: string): Promise<string> {
+    // Scope to org: only orders for ticket products belonging to this org
     const where: any = {};
+    if (user && !isGlobalAdmin(user) && user.organisationId) {
+      where.ticketProduct = { organisationId: user.organisationId };
+    }
     if (from && to) where.createdAt = Between(new Date(from), new Date(to));
     else if (from) where.createdAt = MoreThanOrEqual(new Date(from));
     else if (to) where.createdAt = LessThanOrEqual(new Date(to));

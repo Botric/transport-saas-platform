@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { getActiveSessions, endSession } from '../api/client';
-import { DriverSession } from '../types';
+import type { DriverSession } from '../types';
 import { RefreshCw, BusFront, Clock, Wifi, WifiOff } from 'lucide-react';
 
 // Fix default leaflet marker icons (Vite asset issue)

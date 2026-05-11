@@ -27,6 +27,9 @@ export class ApiKey {
   @JoinColumn({ name: 'created_by_user_id' })
   createdBy: User;
 
+  @Column({ name: 'organisation_id', nullable: true })
+  organisationId: string;
+
   // Comma-separated scopes: live:read, history:read, finance:read, tracking:read
   @Column({ type: 'text', default: 'live:read' })
   scopes: string;

@@ -6,6 +6,8 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { TicketingService } from './ticketing.service';
 import { CreateTicketProductDto, UpdateTicketProductDto } from './ticket-product.dto';
 import { ClaimTicketDto } from './ticket-order.dto';
+import { Roles } from '../common/roles.decorator';
+import { RolesGuard } from '../common/roles.guard';
 
 @Controller('ticketing')
 export class TicketingController {
@@ -13,39 +15,45 @@ export class TicketingController {
 
   // ── Admin: Ticket Products (JWT required) ─────────────────────────────────
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('route_manager', 'finance')
   @Get('products')
-  listProducts() {
-    return this.ticketingService.listProducts();
+  listProducts(@Req() req: any) {
+    return this.ticketingService.listProducts(req.user);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('route_manager', 'finance')
   @Get('products/:id')
-  getProduct(@Param('id') id: string) {
-    return this.ticketingService.getProduct(id);
+  getProduct(@Param('id') id: string, @Req() req: any) {
+    return this.ticketingService.getProduct(id, req.user);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('route_manager', 'finance')
   @Post('products')
-  createProduct(@Body() dto: CreateTicketProductDto) {
-    return this.ticketingService.createProduct(dto);
+  createProduct(@Body() dto: CreateTicketProductDto, @Req() req: any) {
+    return this.ticketingService.createProduct(dto, req.user);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('route_manager', 'finance')
   @Patch('products/:id')
-  updateProduct(@Param('id') id: string, @Body() dto: UpdateTicketProductDto) {
-    return this.ticketingService.updateProduct(id, dto);
+  updateProduct(@Param('id') id: string, @Body() dto: UpdateTicketProductDto, @Req() req: any) {
+    return this.ticketingService.updateProduct(id, dto, req.user);
   }
 
   // ── Admin: All orders ─────────────────────────────────────────────────────
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('finance')
   @Get('orders')
   listOrders() {
     return this.ticketingService.listOrders();
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('finance')
   @Get('orders/:id')
   getOrder(@Param('id') id: string) {
     return this.ticketingService.getOrder(id);

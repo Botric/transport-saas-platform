@@ -12,6 +12,10 @@ export class CreateApiKeyDto {
   @IsOptional()
   @IsDateString()
   expiresAt?: string;
+
+  @IsOptional()
+  @IsString()
+  organisationId?: string;
 }
 
 export class UpdateApiKeyDto {

@@ -5,6 +5,8 @@ import {
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { ReportsService } from './reports.service';
+import { Roles } from '../common/roles.decorator';
+import { RolesGuard } from '../common/roles.guard';
 
 // ── Partner API (API-key authenticated) ──────────────────────────────────────
 
@@ -31,7 +33,7 @@ export class PartnerController {
     @Query('to') to?: string,
   ) {
     await this.reportsService.requireApiKey(auth, 'history:read');
-    return this.reportsService.getHistoricalSessions(from, to);
+    return this.reportsService.getHistoricalSessions(undefined, from, to);
   }
 
   @Get('export/finance')
@@ -42,7 +44,7 @@ export class PartnerController {
     @Res() res: Response,
   ) {
     await this.reportsService.requireApiKey(auth, 'finance:read');
-    const csv = await this.reportsService.financeExportCsv(from, to);
+    const csv = await this.reportsService.financeExportCsv(undefined, from, to);
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="finance-export.csv"');
     res.send(csv);
@@ -78,33 +80,35 @@ export class PartnerController {
 
 // ── Internal admin (JWT authenticated) ───────────────────────────────────────
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('finance')
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Get('live/routes')
-  liveRoutes() {
-    return this.reportsService.getLiveRoutes();
+  liveRoutes(@Req() req: any) {
+    return this.reportsService.getLiveRoutes(req.user);
   }
 
   @Get('live/vehicles')
-  liveVehicles() {
-    return this.reportsService.getLiveVehicles();
+  liveVehicles(@Req() req: any) {
+    return this.reportsService.getLiveVehicles(req.user);
   }
 
   @Get('history/sessions')
-  history(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.reportsService.getHistoricalSessions(from, to);
+  history(@Req() req: any, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.reportsService.getHistoricalSessions(req.user, from, to);
   }
 
   @Get('export/finance')
   async financeExport(
+    @Req() req: any,
     @Query('from') from: string,
     @Query('to') to: string,
     @Res() res: Response,
   ) {
-    const csv = await this.reportsService.financeExportCsv(from, to);
+    const csv = await this.reportsService.financeExportCsv(req.user, from, to);
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="finance-export.csv"');
     res.send(csv);

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Copy, Check } from 'lucide-react';
+import { Plus, Copy, Check, Download, Smartphone } from 'lucide-react';
 import api from '../../api/client';
-import { ActivationCode, Region } from '../../types';
+import type { ActivationCode, Region } from '../../types';
 import { getRegions } from '../../api/client';
 import { PageHeader, DataTable, StatusBadge } from '../../components/ui';
 
@@ -56,6 +56,22 @@ export default function ActivationCodesPage() {
           </button>
         }
       />
+
+      {/* Driver APK download banner */}
+      <div className="mx-6 mt-2 mb-0 flex items-center gap-4 bg-blue-50 border border-blue-200 rounded-xl px-5 py-3">
+        <Smartphone size={28} className="text-blue-600 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-blue-900">Driver App (Android)</p>
+          <p className="text-xs text-blue-700">Install this APK on each driver's device. Pair with an activation code below.</p>
+        </div>
+        <a
+          href="/apks/tango-driver.apk"
+          download="tango-driver.apk"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
+        >
+          <Download size={14} /> Download APK
+        </a>
+      </div>
 
       {showForm && (
         <div className="m-6 bg-white border rounded-xl p-5 shadow-sm max-w-lg">

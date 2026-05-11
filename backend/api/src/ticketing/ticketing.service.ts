@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { TicketProduct } from '../entities/ticket-product.entity';
@@ -7,6 +7,9 @@ import { TicketOrder } from '../entities/ticket-order.entity';
 import { DriverSession } from '../entities/driver-session.entity';
 import { CreateTicketProductDto, UpdateTicketProductDto } from './ticket-product.dto';
 import { ClaimTicketDto } from './ticket-order.dto';
+
+type AuthenticatedUser = { id: string; role: string; organisationId: string | null };
+function isGlobalAdmin(user: AuthenticatedUser) { return user.role === 'super_admin'; }
 
 function generateTicketCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -40,17 +43,32 @@ export class TicketingService {
 
   // ── Ticket Products ────────────────────────────────────────────────────────
 
-  async listProducts() {
-    return this.productsRepo.find({ relations: ['routes'], order: { createdAt: 'DESC' } });
+  async listProducts(user?: AuthenticatedUser) {
+    const where: any = {};
+    if (user && !isGlobalAdmin(user) && user.organisationId) {
+      where.organisationId = user.organisationId;
+    }
+    return this.productsRepo.find({ where, relations: ['routes'], order: { createdAt: 'DESC' } });
   }
 
-  async getProduct(id: string) {
+  async getProduct(id: string, user?: AuthenticatedUser) {
     const p = await this.productsRepo.findOne({ where: { id }, relations: ['routes'] });
     if (!p) throw new NotFoundException('Ticket product not found');
+    if (user && !isGlobalAdmin(user) && user.organisationId && p.organisationId !== user.organisationId) {
+      throw new NotFoundException('Ticket product not found');
+    }
     return p;
   }
 
-  async createProduct(dto: CreateTicketProductDto) {
+  async createProduct(dto: CreateTicketProductDto, user?: AuthenticatedUser) {
+    if (user && !isGlobalAdmin(user) && !user.organisationId) {
+      throw new ForbiddenException('User is not assigned to an organisation');
+    }
+    const organisationId = user
+      ? (isGlobalAdmin(user)
+          ? (dto.organisationId ?? user.organisationId ?? null)
+          : user.organisationId)
+      : null;
     const routes = dto.routeIds?.length
       ? await this.routesRepo.findBy({ id: In(dto.routeIds) })
       : [];
@@ -62,13 +80,14 @@ export class TicketingService {
       validityType: dto.validityType,
       maxUses: dto.maxUses,
       visible: dto.visible,
+      organisationId: organisationId ?? undefined,
       routes,
     });
     return this.productsRepo.save(product);
   }
 
-  async updateProduct(id: string, dto: UpdateTicketProductDto) {
-    const product = await this.getProduct(id);
+  async updateProduct(id: string, dto: UpdateTicketProductDto, user?: AuthenticatedUser) {
+    const product = await this.getProduct(id, user);
     if (dto.routeIds !== undefined) {
       product.routes = dto.routeIds.length
         ? await this.routesRepo.findBy({ id: In(dto.routeIds) })

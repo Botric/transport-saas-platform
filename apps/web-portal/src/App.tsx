@@ -17,6 +17,13 @@ import ReportsPage from './pages/reports/ReportsPage'
 
 const queryClient = new QueryClient()
 
+// Role constants for readability
+const ROUTE_ROLES   = ['route_manager', 'org_admin', 'super_admin'];
+const DRIVER_ROLES  = ['driver_app_manager', 'org_admin', 'super_admin'];
+const FINANCE_ROLES = ['finance', 'org_admin', 'super_admin'];
+const API_ROLES     = ['api_admin', 'org_admin', 'super_admin'];
+const TICKET_ROLES  = ['route_manager', 'finance', 'org_admin', 'super_admin'];
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -24,18 +31,34 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            {/* Any authenticated user can access live tracking */}
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<LiveTrackingPage />} />
-                <Route path="/regions" element={<RegionsPage />} />
-                <Route path="/routes" element={<RoutesPage />} />
-                <Route path="/departures" element={<DeparturesPage />} />
-                <Route path="/activation-codes" element={<ActivationCodesPage />} />
-                <Route path="/vehicles" element={<VehiclesPage />} />
-                <Route path="/tickets" element={<TicketProductsPage />} />
-                <Route path="/finance" element={<FinanceOrdersPage />} />
-                <Route path="/api-keys" element={<ApiKeysPage />} />
-                <Route path="/reports" element={<ReportsPage />} />
+                {/* Route management */}
+                <Route element={<ProtectedRoute roles={ROUTE_ROLES} />}>
+                  <Route path="/regions" element={<RegionsPage />} />
+                  <Route path="/routes" element={<RoutesPage />} />
+                  <Route path="/departures" element={<DeparturesPage />} />
+                </Route>
+                {/* Driver app management */}
+                <Route element={<ProtectedRoute roles={DRIVER_ROLES} />}>
+                  <Route path="/activation-codes" element={<ActivationCodesPage />} />
+                  <Route path="/vehicles" element={<VehiclesPage />} />
+                </Route>
+                {/* Ticketing */}
+                <Route element={<ProtectedRoute roles={TICKET_ROLES} />}>
+                  <Route path="/tickets" element={<TicketProductsPage />} />
+                </Route>
+                {/* Finance */}
+                <Route element={<ProtectedRoute roles={FINANCE_ROLES} />}>
+                  <Route path="/finance" element={<FinanceOrdersPage />} />
+                  <Route path="/reports" element={<ReportsPage />} />
+                </Route>
+                {/* API keys */}
+                <Route element={<ProtectedRoute roles={API_ROLES} />}>
+                  <Route path="/api-keys" element={<ApiKeysPage />} />
+                </Route>
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

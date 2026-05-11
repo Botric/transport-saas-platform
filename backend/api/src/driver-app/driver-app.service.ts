@@ -1,5 +1,5 @@
 import {
-  Injectable, BadRequestException, NotFoundException, UnauthorizedException,
+  Injectable, BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -20,6 +20,12 @@ import { DeparturesService } from '../departures/departures.service';
 
 const UK_REG_RE = /^[A-Z]{2}[0-9]{2}\s?[A-Z]{3}$|^[A-Z][0-9]{1,3}\s?[A-Z]{3}$|^[A-Z]{3}\s?[0-9]{1,3}[A-Z]$|^[A-Z]{2}[0-9]{2,3}$|^[A-Z0-9]{2,7}$/i;
 
+type AuthenticatedUser = {
+  id: string;
+  role: string;
+  organisationId: string | null;
+};
+
 @Injectable()
 export class DriverAppService {
   constructor(
@@ -33,6 +39,32 @@ export class DriverAppService {
     private readonly config: ConfigService,
     private readonly departuresService: DeparturesService,
   ) {}
+
+  private isGlobalAdmin(user: AuthenticatedUser) {
+    return user.role === 'super_admin';
+  }
+
+  private requireOrganisationId(user: AuthenticatedUser) {
+    if (!user.organisationId) {
+      throw new ForbiddenException('User is not assigned to an organisation');
+    }
+    return user.organisationId;
+  }
+
+  private async ensureRegionAccess(regionId: string | undefined, user: AuthenticatedUser) {
+    if (!regionId) {
+      return null;
+    }
+
+    const where = this.isGlobalAdmin(user)
+      ? { id: regionId }
+      : { id: regionId, organisationId: this.requireOrganisationId(user) };
+    const region = await this.regionRepo.findOne({ where });
+    if (!region) {
+      throw new NotFoundException('Region not found');
+    }
+    return region;
+  }
 
   async activate(dto: ActivateDto) {
     const code = await this.codeRepo.findOne({
@@ -115,42 +147,72 @@ export class DriverAppService {
 
   // ─── Admin endpoints ──────────────────────────────────────────────────────
 
-  async listActivationCodes() {
-    return this.codeRepo.find({ order: { createdAt: 'DESC' } });
+  async listActivationCodes(user: AuthenticatedUser) {
+    const where = this.isGlobalAdmin(user)
+      ? undefined
+      : { organisationId: this.requireOrganisationId(user) };
+    return this.codeRepo.find({ where, order: { createdAt: 'DESC' } });
   }
 
-  async createActivationCode(dto: CreateActivationCodeDto) {
+  async createActivationCode(dto: CreateActivationCodeDto, user: AuthenticatedUser) {
+    const region = await this.ensureRegionAccess(dto.regionId, user);
+    const organisationId = this.isGlobalAdmin(user)
+      ? (region?.organisationId ?? user.organisationId ?? undefined)
+      : this.requireOrganisationId(user);
+
     const code = this.codeRepo.create({
       code: dto.code.toUpperCase(),
       regionId: dto.regionId,
+      ...(organisationId ? { organisationId } : {}),
       maxUses: dto.maxUses,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
+      createdByUserId: user.id,
       status: 'active',
     });
     return this.codeRepo.save(code);
   }
 
-  async updateActivationCode(id: string, dto: UpdateActivationCodeDto) {
-    const code = await this.codeRepo.findOneBy({ id });
+  async updateActivationCode(id: string, dto: UpdateActivationCodeDto, user: AuthenticatedUser) {
+    const where = this.isGlobalAdmin(user)
+      ? { id }
+      : { id, organisationId: this.requireOrganisationId(user) };
+    const code = await this.codeRepo.findOne({ where });
     if (!code) throw new NotFoundException('Activation code not found');
     Object.assign(code, dto);
     return this.codeRepo.save(code);
   }
 
-  async createVehicleRegistration(dto: CreateVehicleRegistrationDto) {
+  async listVehicleRegistrations(user: AuthenticatedUser) {
+    const where = this.isGlobalAdmin(user)
+      ? undefined
+      : { organisationId: this.requireOrganisationId(user) };
+    return this.vehicleRepo.find({ where, order: { registration: 'ASC' } });
+  }
+
+  async createVehicleRegistration(dto: CreateVehicleRegistrationDto, user: AuthenticatedUser) {
+    const region = await this.ensureRegionAccess(dto.regionId, user);
+    const organisationId = this.isGlobalAdmin(user)
+      ? (region?.organisationId ?? user.organisationId ?? undefined)
+      : this.requireOrganisationId(user);
+
     const vehicle = this.vehicleRepo.create({
       registration: dto.registration.toUpperCase().trim(),
       vehicleName: dto.vehicleName,
       capacity: dto.capacity,
       regionId: dto.regionId,
+      ...(organisationId ? { organisationId } : {}),
       status: 'active',
     });
     return this.vehicleRepo.save(vehicle);
   }
 
-  async updateVehicleRegistration(id: string, dto: UpdateVehicleRegistrationDto) {
-    const vehicle = await this.vehicleRepo.findOneBy({ id });
+  async updateVehicleRegistration(id: string, dto: UpdateVehicleRegistrationDto, user: AuthenticatedUser) {
+    const where = this.isGlobalAdmin(user)
+      ? { id }
+      : { id, organisationId: this.requireOrganisationId(user) };
+    const vehicle = await this.vehicleRepo.findOne({ where });
     if (!vehicle) throw new NotFoundException('Vehicle registration not found');
+    await this.ensureRegionAccess(dto.regionId, user);
     if (dto.registration) dto.registration = dto.registration.toUpperCase().trim();
     Object.assign(vehicle, dto);
     return this.vehicleRepo.save(vehicle);

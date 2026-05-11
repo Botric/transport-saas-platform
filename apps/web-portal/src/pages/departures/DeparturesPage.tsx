@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { getRoutes, getDepartures, createDeparture } from '../../api/client';
-import { Route, Departure } from '../../types';
+import type { Route, Departure } from '../../types';
 import { PageHeader, DataTable, StatusBadge } from '../../components/ui';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;

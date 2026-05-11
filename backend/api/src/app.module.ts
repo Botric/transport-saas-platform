@@ -15,6 +15,8 @@ import { PassengerModule } from './passenger/passenger.module';
 import { TicketingModule } from './ticketing/ticketing.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { ReportsModule } from './reports/reports.module';
+import { PaymentsModule } from './payments/payments.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { Organisation } from './entities/organisation.entity';
 import { User } from './entities/user.entity';
 import { Region } from './entities/region.entity';
@@ -31,6 +33,7 @@ import { TicketOrder } from './entities/ticket-order.entity';
 import { ApiKey } from './entities/api-key.entity';
 import { AuditLog } from './entities/audit-log.entity';
 import { AuditMiddleware } from './common/audit.middleware';
+import { RolesGuard } from './common/roles.guard';
 
 @Module({
   imports: [
@@ -52,6 +55,8 @@ import { AuditMiddleware } from './common/audit.middleware';
           ApiKey, AuditLog,
         ],
         synchronize: config.get('NODE_ENV') !== 'production',
+        migrationsRun: config.get('NODE_ENV') === 'production',
+        migrations: [__dirname + '/database/migrations/*.{ts,js}'],
         logging: config.get('NODE_ENV') === 'development',
       }),
       inject: [ConfigService],
@@ -68,9 +73,11 @@ import { AuditMiddleware } from './common/audit.middleware';
     TicketingModule,
     ApiKeysModule,
     ReportsModule,
+    PaymentsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, RolesGuard],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

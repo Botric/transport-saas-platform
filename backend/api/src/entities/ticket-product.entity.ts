@@ -9,6 +9,9 @@ export class TicketProduct {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ name: 'organisation_id', nullable: true })
+  organisationId: string;
+
   @Column({ length: 200 })
   name: string;
 
